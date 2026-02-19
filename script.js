@@ -1,18 +1,54 @@
-// --- Global State ---
-const allIslandLayers = {};
+// ===============================
+// 0) GLOBAL STORE
+// ===============================
+const allIslandLayers = {}; 
 
-// --- Config (Matching your Google Sheet) ---
-const islandConfigs = [
-  { name: "Oʻahu", baseUrl: "https://services.arcgis.com/HQ0xoN0EzDPBOEci/arcgis/rest/services/TKMMAFEATURECLASS_OAHU/FeatureServer/736" },
-  { name: "Molokaʻi", baseUrl: "https://services.arcgis.com/HQ0xoN0EzDPBOEci/arcgis/rest/services/TKMMAFEATURECLASS_MOLOKAI/FeatureServer/735" },
-  { name: "Maui", baseUrl: "https://services.arcgis.com/HQ0xoN0EzDPBOEci/arcgis/rest/services/TKMMAFEATURECLASS_MAUI/FeatureServer/734" },
-  { name: "Lānaʻi", baseUrl: "https://services.arcgis.com/HQ0xoN0EzDPBOEci/arcgis/rest/services/TKMMAFEATURECLASS_LANAI/FeatureServer/733" },
-  { name: "Kauaʻi", baseUrl: "https://services.arcgis.com/HQ0xoN0EzDPBOEci/arcgis/rest/services/TKMMAFEATURECLASS_KAUAI/FeatureServer/732" },
-  { name: "Hawaiʻi Island", baseUrl: "https://services.arcgis.com/HQ0xoN0EzDPBOEci/arcgis/rest/services/TKMMAFEATURECLASS_HAWAII_ISLAND/FeatureServer/730" },
-  { name: "Kahoʻolawe", baseUrl: "https://services.arcgis.com/HQ0xoN0EzDPBOEci/arcgis/rest/services/TKMMAFEATURECLASS_KAHAOLAWE/FeatureServer/731" }
-];
+// ===============================
+// 1) TAB SWITCHING
+// ===============================
+window.showTab = function (btn, tabId) {
+  const section = btn.closest(".area-section");
+  if (!section) return;
+  section
+    .querySelectorAll(".tab-pane")
+    .forEach((p) => (p.style.display = "none"));
+  btn.parentElement.querySelectorAll("button").forEach((b) => {
+    b.classList.remove("active");
+    b.style.borderBottomColor = "transparent";
+  });
+  const target = section.querySelector("#" + CSS.escape(tabId));
+  if (target) target.style.display = "block";
+  btn.classList.add("active");
+  btn.style.borderBottomColor = "#005a87";
+};
 
-// --- Map Initialization ---
+// ===============================
+// 2) FORMATTING HELPERS
+// ===============================
+const getVal = (props, key) => {
+  const foundKey = Object.keys(props).find(k => k.toLowerCase() === key.toLowerCase());
+  const val = foundKey ? props[foundKey] : null;
+  return val === "N/A" || val === "" || val === null ? null : val;
+};
+
+const formatBullets = (text) => {
+  if (!text || text === "N/A") return "N/A";
+  const lines = String(text).split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+  if (!lines.some(l => /^[•●○◦*-]\s+/.test(l))) return text;
+  return `<div style="padding-left:14px; margin-top:5px;">${lines.map(l => `<div style="margin-bottom:6px;">• ${l.replace(/^[•●○◦*-]\s+/, "")}</div>`).join("")}</div>`;
+};
+
+const formatDate = (dateVal) => {
+  if (!dateVal || dateVal === "N/A") return "N/A";
+  const date = new Date(dateVal);
+  return Number.isNaN(date.getTime()) ? dateVal : `${String(date.getMonth() + 1).padStart(2, "0")}/${String(date.getDate()).padStart(2, "0")}/${date.getFullYear()}`;
+};
+
+const joinFields = (props, ...keys) => keys.map(k => getVal(props, k)).filter(Boolean).join("<br>");
+
+// ===============================
+// 3) MAP INIT
+// ===============================
 const map = L.map("map").setView([20.4, -157.4], 7);
 
 L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}", { 
@@ -20,124 +56,307 @@ L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/
 }).addTo(map);
 
 L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}", { 
-  pane: "overlayPane" 
+  attribution: "Labels", 
+  pane: "shadowPane" 
 }).addTo(map);
 
-// --- Core Logic ---
-async function loadLayers() {
-  document.getElementById('island-list').innerHTML = '';
-  for (const cfg of islandConfigs) {
-    try {
-      // 1. Fetch ArcGIS Data
-      const res = await fetch(`${cfg.baseUrl}/query?where=1=1&outFields=*&f=geojson&returnGeometry=true`);
-      const data = await res.json();
-      
-      // 2. Add to Map
-      const layer = L.geoJSON(data, {
-        style: { color: "#005a87", weight: 1.5, fillOpacity: 0.3 },
-        onEachFeature: (feature, l) => {
-          l.on('click', (e) => handleMapClick(e));
-        }
-      }).addTo(map);
-      
-      allIslandLayers[cfg.name] = layer;
-      
-      // 3. Populate Sidebar
-      renderSidebarGroup(cfg.name, data.features);
-    } catch (err) {
-      console.error(`Failed to load ${cfg.name}:`, err);
+// ===============================
+// 4) ISLAND CONFIG
+// ===============================
+const islandConfigs = [
+  { name: "Oʻahu", baseUrl: "https://services.arcgis.com/HQ0xoN0EzDPBOEci/arcgis/rest/services/TKMMAFEATURECLASS_OAHU/FeatureServer", layerId: 736 },
+  { name: "Molokaʻi", baseUrl: "https://services.arcgis.com/HQ0xoN0EzDPBOEci/arcgis/rest/services/TKMMAFEATURECLASS_MOLOKAI/FeatureServer", layerId: 735 },
+  { name: "Maui", baseUrl: "https://services.arcgis.com/HQ0xoN0EzDPBOEci/arcgis/rest/services/TKMMAFEATURECLASS_MAUI/FeatureServer", layerId: 734 },
+  { name: "Lānaʻi", baseUrl: "https://services.arcgis.com/HQ0xoN0EzDPBOEci/arcgis/rest/services/TKMMAFEATURECLASS_LANAI/FeatureServer", layerId: 733 },
+  { name: "Kauaʻi", baseUrl: "https://services.arcgis.com/HQ0xoN0EzDPBOEci/arcgis/rest/services/TKMMAFEATURECLASS_KAUAI/FeatureServer", layerId: 732 },
+  { name: "Hawaiʻi Island", baseUrl: "https://services.arcgis.com/HQ0xoN0EzDPBOEci/arcgis/rest/services/TKMMAFEATURECLASS_HAWAII_ISLAND/FeatureServer", layerId: 730 },
+  { name: "Kahoʻolawe", baseUrl: "https://services.arcgis.com/HQ0xoN0EzDPBOEci/arcgis/rest/services/TKMMAFEATURECLASS_KAHAOLAWE/FeatureServer", layerId: 731 }
+];
+
+// ===============================
+// 5) UTILITIES & SIDEBAR LOGIC
+// ===============================
+function latlngInPolygon(latlng, layer, map) {
+  const point = map.latLngToLayerPoint(latlng);
+  if (!layer._parts || !layer._parts.length) return layer.getBounds().contains(latlng);
+  
+  const insideRing = (ring) => {
+    let inside = false;
+    for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
+      const xi = ring[i].x, yi = ring[i].y;
+      const xj = ring[j].x, yj = ring[j].y;
+      const intersect = yi > point.y !== yj > point.y && point.x < ((xj - xi) * (point.y - yi)) / (yj - yi) + xi;
+      if (intersect) inside = !inside;
     }
-  }
+    return inside;
+  };
+  
+  return layer._parts.some(ring => insideRing(ring));
 }
 
-function handleMapClick(e) {
-  L.DomEvent.stopPropagation(e);
-  const hits = [];
-  // Find ALL features from ALL active layers at this point
-  Object.values(allIslandLayers).forEach(group => {
-    if (map.hasLayer(group)) {
-      group.eachLayer(l => {
-        if (l.getBounds().contains(e.latlng)) hits.push(l.feature);
-      });
-    }
-  });
-  if (hits.length > 0) openMultiPopup(e.latlng, hits);
-}
-
-// --- Sidebar Helpers ---
-function renderSidebarGroup(islandName, features) {
+function populateSidebar(islandName, features) {
   const container = document.getElementById('island-list');
-  const id = islandName.replace(/\s+/g, '');
+  if (!container) return;
+  const islandId = islandName.replace(/\s+/g, '');
   const group = document.createElement('div');
   group.className = 'island-group';
   
-  const items = features
-    .map(f => {
-      const name = f.properties.Full_Name || f.properties.Full_name || "Unknown Area";
-      return `<div class="area-item" onclick="zoomToArea('${islandName}', '${name}')">${name}</div>`;
-    })
-    .sort()
-    .join('');
+  const areaItems = features.map(f => {
+    const name = getVal(f.properties, "Full_Name") || getVal(f.properties, "Full_name") || "Unknown";
+    return `<div class="area-item" onclick="zoomToArea('${islandName}', '${name}')">${name}</div>`;
+  }).sort().join('');
 
   group.innerHTML = `
-    <div class="island-header" id="h-${id}" onclick="toggleIsland('${id}')">
+    <div class="island-header" id="header-${islandId}">
       <div class="header-left">
-        <input type="checkbox" checked onclick="event.stopPropagation(); toggleLayer('${islandName}', this.checked)">
-        <span>${islandName}</span>
+        <input type="checkbox" checked onclick="toggleLayerVisibility(event, '${islandName}')">
+        <span onclick="toggleIsland('${islandId}')">${islandName}</span>
       </div>
-      <span class="chevron">▼</span>
+      <span class="chevron" onclick="toggleIsland('${islandId}')">▼</span>
     </div>
-    <div id="l-${id}" class="area-list">${items}</div>`;
+    <div id="list-${islandId}" class="area-list">${areaItems}</div>`;
   container.appendChild(group);
 }
 
-window.toggleSidebar = () => document.getElementById('map-sidebar').classList.toggle('collapsed');
-window.toggleIsland = (id) => {
-  document.getElementById(`l-${id}`).classList.toggle('active');
-  document.getElementById(`h-${id}`).classList.toggle('expanded');
+window.toggleSidebar = function() {
+  document.getElementById('map-sidebar').classList.toggle('collapsed');
 };
-window.toggleLayer = (name, show) => show ? map.addLayer(allIslandLayers[name]) : map.removeLayer(allIslandLayers[name]);
 
-window.zoomToArea = (island, name) => {
-  allIslandLayers[island].eachLayer(l => {
-    if ((l.feature.properties.Full_Name || l.feature.properties.Full_name) === name) {
-      map.fitBounds(l.getBounds());
-      openMultiPopup(l.getBounds().getCenter(), [l.feature]);
+window.toggleIsland = (id) => {
+  const list = document.getElementById(`list-${id}`);
+  const header = document.getElementById(`header-${id}`);
+  if (list) {
+    list.classList.toggle('active');
+    header.classList.toggle('expanded');
+  }
+};
+
+window.toggleLayerVisibility = (event, islandName) => {
+  event.stopPropagation();
+  const layer = allIslandLayers[islandName];
+  if (event.target.checked) map.addLayer(layer);
+  else map.removeLayer(layer);
+};
+
+window.zoomToArea = (islandName, areaName) => {
+  const layerGroup = allIslandLayers[islandName];
+  if (!layerGroup) return;
+  layerGroup.eachLayer(layer => {
+    const name = getVal(layer.feature.properties, "Full_Name") || getVal(layer.feature.properties, "Full_name");
+    if (name === areaName) {
+      map.fitBounds(layer.getBounds());
+      openMultiPopup(layer.getBounds().getCenter(), [layer.feature]);
     }
   });
 };
 
 window.filterSidebar = () => {
   const term = document.getElementById('area-search').value.toLowerCase();
+  
   document.querySelectorAll('.island-group').forEach(group => {
-    let matchCount = 0;
-    group.querySelectorAll('.area-item').forEach(item => {
-      const isMatch = item.innerText.toLowerCase().includes(term);
-      item.style.display = isMatch ? 'block' : 'none';
-      if (isMatch) matchCount++;
+    let hasMatch = false;
+    const items = group.querySelectorAll('.area-item');
+    
+    items.forEach(item => {
+      if (item.innerText.toLowerCase().includes(term)) {
+        item.style.display = 'block';
+        hasMatch = true;
+      } else {
+        item.style.display = 'none';
+      }
     });
-    group.style.display = (term === "" || matchCount > 0) ? 'block' : 'none';
+
+    const list = group.querySelector('.area-list');
+    const header = group.querySelector('.island-header');
+    
+    if (term !== "" && hasMatch) {
+      list.classList.add('active');
+      header.classList.add('expanded');
+      group.style.display = 'block';
+    } else if (term !== "" && !hasMatch) {
+      group.style.display = 'none';
+    } else {
+      group.style.display = 'block';
+      list.classList.remove('active');
+      header.classList.remove('expanded');
+    }
   });
 };
 
-// --- Popup Engine (Simplified but powerful) ---
+// ===============================
+// 6) POPUP GENERATION
+// ===============================
 function openMultiPopup(latlng, features) {
-  // Use your logic from the provided snippet to build the `summaryCardHtml` 
-  // and `individualCardsHtml` with the Tabs (About/Rules/Laws).
-  // I have kept the structure clean to ensure no clashing.
-  const content = `
-    <div class="mmpopup">
-      <div class="mmpopup__header"><b>${features.length} Area(s) Selected</b></div>
-      <div class="mmpopup__scroll" style="max-height:400px; overflow-y:auto; padding:10px;">
-        ${features.map(f => `<div class="mmcard" style="border:1px solid #ddd; padding:10px; margin-bottom:10px; border-radius:8px;">
-          <h3 style="margin:0 0 5px 0; color:#005a87;">${f.properties.Full_Name || f.properties.Full_name}</h3>
-          <p style="font-size:12px; margin:0;">${f.properties.Designation_1 || 'Regulated Area'}</p>
-        </div>`).join('')}
+  const style = `
+    <style>
+      .leaflet-popup-content { margin: 0 !important; }
+      .leaflet-popup-content-wrapper { padding: 0 !important; border-radius: 12px !important; }
+      .mmpopup { width: 360px; max-width: 360px; background: #ffffff; border-radius: 12px; overflow: hidden; font-family: sans-serif; }
+      .mmpopup__header { padding: 12px 14px; background: #f6f6f6; border-bottom: 1px solid #e6e6e6; text-align: center; }
+      .mmpopup__header-title { font-size: 11px; font-weight: 800; color: #666; letter-spacing: 0.02em; }
+      .mmpopup__scroll { max-height: 440px; overflow-y: auto; padding: 12px; box-sizing: border-box; background: #ffffff; scrollbar-gutter: stable both-edges; scrollbar-width: thin; }
+      .mmcard { border: 1px solid #e5e5e5; border-radius: 10px; overflow: hidden; background: #fff; box-shadow: 0 2px 10px rgba(0,0,0,0.06); margin-bottom: 12px; }
+      .mmcard--summary { border: 2px solid #005a87; background: #f0f7fb; }
+      .mmcard__body { padding: 12px 12px 10px; }
+      .section-divider { display: flex; align-items: center; text-align: center; margin: 20px 0 15px 0; color: #888; font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.1em; }
+      .section-divider::before, .section-divider::after { content: ''; flex: 1; border-bottom: 1px solid #e6e6e6; }
+      .mmcard__title { font-size: 16px; line-height: 1.2; margin: 0 0 10px 0; font-weight: 800; color: #222; }
+      .mmcard__subtitle { font-size: 13px; color: #005a87; font-weight: 700; margin-bottom: 12px; line-height: 1.6; }
+      .mm-statewide-notice { background: #e1e9ee; padding: 12px; border-radius: 8px; border: 1px solid #005a87; font-size: 12px; line-height: 1.45; margin-bottom: 14px; color: #33444d; text-align: center; }
+      .mm-statewide-notice a { color: #005a87; font-weight: 800; text-decoration: underline; }
+      .mmtabs { display: flex; gap: 8px; border-bottom: 1px solid #e6e6e6; margin-bottom: 10px; flex-wrap: wrap; }
+      .mmtabs button { flex: 1; min-width: 60px; background: none; border: none; cursor: pointer; padding: 8px 4px; font-size: 9px; font-weight: 800; color: #444; border-bottom: 2px solid transparent; text-transform: uppercase; }
+      .mmtabs button.active { color: #005a87; border-bottom-color: #005a87; }
+      .mmtabpane { font-size: 13px; line-height: 1.45; color: #222; }
+      .summary-section-title { font-weight: 800; color: #005a87; margin-top: 14px; margin-bottom: 4px; border-bottom: 1px solid #cce0eb; font-size: 11px; text-transform: uppercase; }
+      .area-label { font-size: 11px; font-weight: 800; color: #555; margin-top: 8px; margin-bottom: 2px; }
+      .reg-link { color: #005a87; font-weight: 800; text-decoration: none; display: block; margin-top: 4px; }
+      .mm-bullet-container { display: flex; align-items: flex-start; margin-bottom: 6px; }
+      .mm-bullet-point { min-width: 14px; font-weight: bold; color: #005a87; }
+      .mm-bullet-text { flex: 1; }
+    </style>
+  `;
+
+  const formatBulletsWithIndents = (text) => {
+    if (!text || text === "N/A") return "N/A";
+    const lines = String(text).split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+    return lines.map(l => `<div class="mm-bullet-container"><span class="mm-bullet-point">•</span><span class="mm-bullet-text">${l.replace(/^[•●○◦*-]\s+/, "").trim()}</span></div>`).join("");
+  };
+
+  let summaryCardHtml = "";
+  let sectionDividerHtml = "";
+
+  if (features.length > 1) {
+    const areaNamesHtml = features.map(f => `<div class="mm-bullet-container"><span class="mm-bullet-point">•</span><span class="mm-bullet-text">${getVal(f.properties, "Full_name") || getVal(f.properties, "Full_Name") || "Unknown Area"}</span></div>`).join("");
+    const stateRegsUrl = getVal(features[0].properties, "State_Fishing_Regs_URL") || "https://dlnr.hawaii.gov/dar/fishing/fishing-regulations/";
+
+    const buildSummaryBlock = (title, fieldKey) => {
+      const items = features.map(f => ({ name: getVal(f.properties, "Full_name") || getVal(f.properties, "Full_Name"), val: getVal(f.properties, fieldKey) })).filter(i => i.val);
+      if (!items.length) return "";
+      return `<div class="summary-section-title">${title}</div>` + items.map(item => `<div class="area-label">${item.name}:</div><div style="margin-bottom:8px;">${formatBulletsWithIndents(item.val)}</div>`).join("");
+    };
+
+    summaryCardHtml = `
+      <div class="area-section mmcard mmcard--summary">
+        <div class="mmcard__body">
+          <h3 class="mmcard__title">Fishing Rules Summary</h3>
+          <span class="mmcard__subtitle-label">Managed Areas at this Location:</span>
+          <div class="mmcard__subtitle">${areaNamesHtml}</div>
+          <div class="mm-statewide-notice">The site-specific rules below apply in addition to all <a href="${stateRegsUrl}" target="_blank">Statewide Fishing Regulations</a>.</div>
+          <div class="mmtabs"><button class="active">CONSOLIDATED RULES</button></div>
+          <div class="mmtabpane">
+            ${buildSummaryBlock("Gear Restrictions", "Rules_Gear")}
+            ${buildSummaryBlock("Species & Bag Limits", "Rules_Species_Size_Bag")}
+            ${buildSummaryBlock("Prohibited Activities", "Rules_Activities")}
+            ${buildSummaryBlock("Seasons & Times Rules", "Rules_Seasons_Times")}
+            ${buildSummaryBlock("Transit & Anchor Rules", "Rules_Transit_Anchor")}
+          </div>
+        </div>
+      </div>`;
+    sectionDividerHtml = `<div class="section-divider">Detailed Area Information Below</div>`;
+  }
+
+  const individualCardsHtml = features.map((feature, index) => {
+    const props = feature.properties;
+    const uid = `area-${index}`;
+    const name = getVal(props, "Full_name") || getVal(props, "Full_Name") || "Unknown Area";
+    const img = getVal(props, "Area_Image_URL_1") || getVal(props, "Area_Image_URL_2") || getVal(props, "Area_Image_URL_3");
+    const stateUrl = getVal(props, "State_Fishing_Regs_URL") || "https://dlnr.hawaii.gov/dar/fishing/fishing-regulations/";
+
+    const renderFieldIndented = (alias, value, isBullet = false, isDate = false) => {
+      if (!value || value === "N/A" || value === "") return "";
+      const displayValue = isDate ? formatDate(value) : isBullet ? formatBulletsWithIndents(value) : value;
+      return `<div style="margin-bottom:12px;"><div style="font-weight:700; margin-bottom:2px;">${alias}</div><div>${displayValue}</div></div>`;
+    };
+
+    return `
+    <div class="area-section mmcard">
+      ${img ? `<img style="width:100%; aspect-ratio:16/9; object-fit:cover; display:block;" src="${img}">` : ""}
+      <div class="mmcard__body">
+        <h3 class="mmcard__title">${name}</h3>
+        <div class="mmtabs">
+          <button class="active" onclick="showTab(this,'about-${uid}')">ABOUT</button>
+          <button onclick="showTab(this,'rules-${uid}')">RULES</button>
+          <button onclick="showTab(this,'laws-${uid}')">LAWS</button>
+        </div>
+        <div id="about-${uid}" class="tab-pane mmtabpane" style="display:block;">
+          ${renderFieldIndented("Designation", joinFields(props, "Designation_1", "Designation_2", "Designation_3"))}
+          ${renderFieldIndented("Island", getVal(props, "Island"))}
+          ${renderFieldIndented("Purpose", getVal(props, "Purpose"), true)}
+          ${renderFieldIndented("Cultural Info", getVal(props, "Cultural"), true)}
+          ${renderFieldIndented("Fishing Info", getVal(props, "Fishing_Info"), true)}
+          ${renderFieldIndented("Date Established", getVal(props, "Establish_Date"), false, true)}
+          ${renderFieldIndented("Date Modified", getVal(props, "Modify_Date"), false, true)}
+          ${renderFieldIndented("Location", getVal(props, "Location"))}
+          ${getVal(props, "DAR_URL") ? `<a class="reg-link" href="${getVal(props, "DAR_URL")}" target="_blank">OFFICIAL DAR PAGE ›</a>` : ""}
+        </div>
+        <div id="rules-${uid}" class="tab-pane mmtabpane" style="display:none;">
+          <div class="mm-statewide-notice">The site-specific rules below apply in addition to all <a href="${stateUrl}" target="_blank">Statewide Fishing Regulations</a>.</div>
+          ${renderFieldIndented("Gear Rules", getVal(props, "Rules_Gear"), true)}
+          ${renderFieldIndented("Species & Bag Limits", getVal(props, "Rules_Species_Size_Bag"), true)}
+          ${renderFieldIndented("Activities Rules", getVal(props, "Rules_Activities"), true)}
+          ${renderFieldIndented("Seasons & Times Rules", getVal(props, "Rules_Seasons_Times"), true)}
+          ${renderFieldIndented("Transit & Anchor Rules", getVal(props, "Rules_Transit_Anchor"), true)}
+          ${renderFieldIndented("Additional Rules", getVal(props, "Rules_Also_Text"), true)}
+        </div>
+        <div id="laws-${uid}" class="tab-pane mmtabpane" style="display:none;">
+          ${getVal(props, "HAR_Name") ? `<div><strong>HAR Name:</strong> ${getVal(props, "HAR_Name")}</div>` : ""}
+          ${getVal(props, "HAR_Link") ? `<a class="reg-link" href="${getVal(props, "HAR_Link")}" target="_blank">VIEW HAR PDF ›</a>` : ""}
+          ${renderFieldIndented("Penalties", getVal(props, "Penalties"), true)}
+          ${renderFieldIndented("Management Authority", getVal(props, "Mgmt_Auth"))}
+        </div>
       </div>
     </div>`;
+  }).join("");
 
-  L.popup({ maxWidth: 350 }).setLatLng(latlng).setContent(content).openOn(map);
+  const headerTitle = features.length === 1 ? "1 Area Selected" : `${features.length} Areas Selected`;
+  L.popup({ maxWidth: 360, minWidth: 360 }).setLatLng(latlng).setContent(`${style}<div class="mmpopup"><div class="mmpopup__header"><div class="mmpopup__header-title">${headerTitle}</div></div><div class="mmpopup__scroll">${summaryCardHtml}${sectionDividerHtml}${individualCardsHtml}</div></div>`).openOn(map);
 }
 
-// Start
-loadLayers();
+// ===============================
+// 7) LOAD LAYERS
+// ===============================
+async function loadIslandLayer(config) {
+  const layerUrl = `${config.baseUrl}/${config.layerId}`;
+  try {
+    const metadataResp = await fetch(`${layerUrl}?f=json`);
+    const metadata = await metadataResp.json();
+    const renderer = metadata?.drawingInfo?.renderer;
+    const globalOpacity = (100 - (metadata?.drawingInfo?.transparency || 0)) / 100;
+    
+    const dataResp = await fetch(`${layerUrl}/query?where=1=1&outFields=*&f=geojson&returnGeometry=true`);
+    const geojsonData = await dataResp.json();
+    
+    const geoLayer = L.geoJSON(geojsonData, {
+      style: function (feature) {
+        const fName = (getVal(feature.properties, "Full_Name") || getVal(feature.properties, "Full_name") || "").toLowerCase();
+        const match = renderer?.uniqueValueInfos?.find((info) => String(info.value || "").toLowerCase() === fName);
+        if (match) {
+          const c = match.symbol.color;
+          return { fillColor: `rgba(${c[0]},${c[1]},${c[2]},${c[3] / 255})`, fillOpacity: globalOpacity, color: `rgb(${match.symbol.outline.color[0]},${match.symbol.outline.color[1]},${match.symbol.outline.color[2]})`, weight: 1.5 };
+        }
+        return { weight: 1.2, fillOpacity: 0.3, color: "#005a87" };
+      },
+      onEachFeature: function (feature, layer) {
+        layer.on("click", function (e) {
+          L.DomEvent.stopPropagation(e);
+          const hits = [];
+          Object.values(allIslandLayers).forEach(islandLayerGroup => {
+            if (map.hasLayer(islandLayerGroup)) {
+              islandLayerGroup.eachLayer(l => {
+                if (l instanceof L.Polygon && latlngInPolygon(e.latlng, l, map)) hits.push(l.feature);
+              });
+            }
+          });
+          if (hits.length) openMultiPopup(e.latlng, hits);
+        });
+      }
+    }).addTo(map);
+
+    allIslandLayers[config.name] = geoLayer;
+    populateSidebar(config.name, geojsonData.features);
+
+  } catch (e) { console.error(e); }
+}
+
+islandConfigs.forEach((cfg) => loadIslandLayer(cfg));
