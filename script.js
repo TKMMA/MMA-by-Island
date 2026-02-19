@@ -208,29 +208,14 @@ window.filterSidebar = () => {
 // ===============================
 // 6) POPUP GENERATION
 // ===============================
-function openMultiPopup(latlng, features) {
-  const style = `
-    <style>
-      .leaflet-popup-content { margin: 0 !important; }
-      .leaflet-popup-content-wrapper { padding: 0 !important; border-radius: 8px !important; box-shadow: 4px 0 15px rgba(0,0,0,0.1) !important; }
-      .mmpopup { width: 320px; background: #ffffff; border-radius: 8px; overflow: hidden; font-family: sans-serif; display: flex; flex-direction: column; height: 650px; }
-      .mmpopup__header { padding: 10px; background: #f6f6f6; border-bottom: 1px solid #e6e6e6; text-align: center; flex-shrink: 0; }
-      .mmpopup__header-title { font-size: 10px; font-weight: 800; color: #666; text-transform: uppercase; }
-      .mmpopup__scroll { flex-grow: 1; overflow-y: auto; padding: 12px; background: #ffffff; scrollbar-width: thin; }
-      .mmcard { border: 1px solid #e5e5e5; border-radius: 8px; overflow: hidden; background: #fff; margin-bottom: 12px; }
-      .mmcard--summary { border: 2px solid #005a87; background: #f0f7fb; }
-      .mmcard__body { padding: 10px; }
-      .mmcard__title { font-size: 15px; line-height: 1.2; margin: 0 0 8px 0; font-weight: 800; color: #222; }
-      .mmtabs { display: flex; gap: 4px; border-bottom: 1px solid #e6e6e6; margin-bottom: 10px; }
-      .mmtabs button { flex: 1; background: none; border: none; cursor: pointer; padding: 6px 2px; font-size: 9px; font-weight: 800; color: #444; border-bottom: 2px solid transparent; }
-      .mmtabs button.active { color: #005a87; border-bottom-color: #005a87; }
-      .mmtabpane { font-size: 12px; line-height: 1.4; color: #222; }
-      .mm-bullet-container { display: flex; align-items: flex-start; margin-bottom: 4px; }
-      .mm-bullet-point { min-width: 12px; font-weight: bold; color: #005a87; }
-    </style>
-  `;
+// ===============================
+// 6) INFORMATION SIDEBAR GENERATION
+// ===============================
+function openInfoSidebar(features) {
+  const container = document.getElementById('info-sidebar');
+  if (!container) return;
 
-  // Helper inside the popup to handle formatting
+  // Helper inside for formatting
   const formatBulletsWithIndents = (text) => {
     if (!text || text === "N/A") return "N/A";
     const lines = String(text).split(/\r?\n/).map(l => l.trim()).filter(Boolean);
@@ -254,7 +239,7 @@ function openMultiPopup(latlng, features) {
     const uid = `area-${index}`;
     const name = getVal(props, "Full_Name") || "Unknown Area";
     return `
-    <div class="mmcard">
+    <div class="mmcard area-section">
       <div class="mmcard__body">
         <h3 class="mmcard__title">${name}</h3>
         <div class="mmtabs">
@@ -272,17 +257,26 @@ function openMultiPopup(latlng, features) {
     </div>`;
   }).join("");
 
-  L.popup({
-    maxWidth: 320, // Matches Sidebar Width
-    minWidth: 320,
-    className: 'leaflet-popup-docked',
-    autoPan: false,
-    closeOnClick: false
-  })
-    .setLatLng(map.getBounds().getNorthWest())
-    .setContent(`${style}<div class="mmpopup"><div class="mmpopup__header"><div class="mmpopup__header-title">${features.length} Areas Selected</div></div><div class="mmpopup__scroll">${summaryCardHtml}${individualCardsHtml}</div></div>`)
-    .openOn(map);
+  // Inject content and show sidebar
+  container.innerHTML = `
+    <div class="info-sidebar-header">
+        <h3>${features.length} Areas Selected</h3>
+        <button class="close-info-btn" onclick="closeInfoSidebar()">×</button>
+    </div>
+    <div class="info-content-scroll">
+        ${summaryCardHtml}
+        ${individualCardsHtml}
+    </div>
+  `;
+  container.classList.add('active');
 }
+
+window.closeInfoSidebar = function() {
+    const container = document.getElementById('info-sidebar');
+    container.classList.remove('active');
+    if (window.currentPin) map.removeLayer(window.currentPin);
+    document.querySelectorAll('.leaflet-interactive').forEach(el => el.classList.remove('selected-polygon-flash'));
+};
 
 // ===============================
 // 7) LOAD LAYERS
