@@ -179,7 +179,7 @@
    5) SECONDARY INFORMATION SIDEBAR
    =============================== */
 .info-sidebar {
-    width: 0; /* Hidden by default */
+    width: 0; 
     background: #ffffff;
     border-left: 1px solid #ddd;
     display: flex;
@@ -188,13 +188,14 @@
     transition: width 0.3s ease;
     z-index: 10;
     overflow: hidden;
-    position: relative;
+    position: relative; /* Changed from absolute to relative to sit in flex flow */
     box-shadow: -2px 0 5px rgba(0,0,0,0.05);
 }
 
-/* When active, match the width of the primary sidebar */
+/* This pushes the width and makes it visible */
 .info-sidebar.active {
     width: 320px;
+    min-width: 320px;
 }
 
 .info-sidebar-header {
@@ -204,29 +205,6 @@
     display: flex;
     justify-content: space-between;
     align-items: center;
-}
-
-.info-sidebar-header h3 {
-    margin: 0;
-    font-size: 14px;
-    color: #005a87;
-    text-transform: uppercase;
-    font-weight: 800;
-}
-
-.close-info-btn {
-    background: none;
-    border: none;
-    font-size: 20px;
-    cursor: pointer;
-    color: #999;
-}
-
-.info-content-scroll {
-    flex: 1;
-    overflow-y: auto;
-    padding: 15px;
-    scrollbar-width: thin;
 }
 
 /* ===============================
