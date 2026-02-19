@@ -41,7 +41,6 @@ body, html {
   top: var(--panel-margin);
   left: var(--panel-margin);
   width: var(--sidebar-width);
-  /* Dynamic height: shrinks to content, caps at screen height */
   max-height: calc(100vh - (var(--panel-margin) * 2));
   background: #ffffff;
   display: flex;
@@ -55,26 +54,85 @@ body, html {
 
 .map-sidebar.collapsed { width: var(--collapsed-width); }
 
+/* Hide sidebar internals when collapsed (toggle remains outside via floating button) */
+.map-sidebar.collapsed .sidebar-header h2,
+.map-sidebar.collapsed .search-box,
+.map-sidebar.collapsed .island-list {
+  display: none;
+}
+
 .sidebar-header { padding: 15px; background: var(--primary-blue); color: white; }
 .header-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
 .header-top h2 { margin: 0; font-size: 16px; font-weight: 700; }
 
-.sidebar-toggle-btn {
-  background: rgba(255,255,255,0.1);
-  border: none; color: white; padding: 4px 8px;
-  cursor: pointer; border-radius: 4px;
+/* Search */
+.search-box { width: 100%; }
+
+.search-input-wrapper {
+  position: relative;       /* ✅ fixes icon drifting */
+  width: 100%;
 }
 
 #area-search {
-  width: 100%; padding: 8px 30px 8px 12px;
-  border-radius: 15px; border: none; font-size: 13px;
-  outline: none; color: #333; background: #fff;
+  width: 100%;
+  padding: 8px 32px 8px 12px; /* space for icon */
+  border-radius: 15px;
+  border: none;
+  font-size: 13px;
+  outline: none;
+  color: #333;
+  background: #fff;
   box-sizing: border-box;
 }
 
 .search-icon {
-  position: absolute; right: 10px; top: 50%;
-  transform: translateY(-50%); color: #666; font-size: 12px;
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 14px;
+  color: #666;
+  pointer-events: none;
+  line-height: 1;
+}
+
+/* =============================== */
+/* FLOATING SIDEBAR TOGGLE BUTTON  */
+/* (always clickable, sits in gap) */
+/* =============================== */
+.sidebar-edge-toggle {
+  position: absolute;
+  top: calc(var(--panel-margin) + 14px);
+  left: calc(var(--panel-margin) + var(--sidebar-width) - 14px); /* half of 28px */
+  width: 28px;
+  height: 28px;
+  border: none;
+  border-radius: 9px;
+  cursor: pointer;
+
+  background: var(--primary-blue);
+  color: #fff;
+  font-weight: 900;
+  font-size: 14px;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  z-index: 1003;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.25);
+  transition:
+    left var(--transition-speed) cubic-bezier(0.4, 0, 0.2, 1),
+    transform var(--transition-speed) ease;
+}
+
+.sidebar-edge-toggle:hover {
+  transform: translateY(-1px);
+}
+
+/* When nav collapses, move the floating toggle with it */
+.map-sidebar.collapsed ~ .sidebar-edge-toggle {
+  left: calc(var(--panel-margin) + var(--collapsed-width) - 14px);
 }
 
 /* Accordion Styling */
@@ -106,7 +164,6 @@ body, html {
 .info-sidebar {
   position: absolute;
   top: var(--panel-margin);
-  /* Pinned next to navigation sidebar plus gap */
   left: calc(var(--sidebar-width) + (var(--panel-margin) * 2));
   width: var(--info-panel-width);
   height: calc(100vh - (var(--panel-margin) * 2));
@@ -123,9 +180,10 @@ body, html {
 
 .info-sidebar.active { transform: translateX(0); }
 
-/* Slide adjustment when nav is collapsed */
-.map-sidebar.collapsed + .info-sidebar { 
-  left: calc(var(--collapsed-width) + (var(--panel-margin) * 2)); 
+/* ✅ was + selector (broken once we inserted the floating button).
+   Now uses ~ so it still works with extra siblings in between. */
+.map-sidebar.collapsed ~ .info-sidebar {
+  left: calc(var(--collapsed-width) + (var(--panel-margin) * 2));
 }
 
 .info-content { flex: 1; overflow-y: auto; padding-top: 10px; }
@@ -147,17 +205,159 @@ body, html {
 .mmpopup__header-title { font-size: 11px; font-weight: 800; color: #888; text-transform: uppercase; }
 .mmpopup__scroll { padding: 15px; }
 
-.mmcard { border: 1px solid var(--border-color); border-radius: 10px; overflow: hidden; background: #fff; box-shadow: 0 2px 8px rgba(0,0,0,0.05); margin-bottom: 15px; }
+.mmcard {
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+  overflow: hidden;
+  background: #fff;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+  margin-bottom: 15px;
+}
+
 .mmcard--summary { border: 2px solid var(--primary-blue); background: #f0f7fb; }
+
 .mmcard__body { padding: 15px; }
-.mmcard__title { font-size: 17px; font-weight: 800; color: #222; margin: 0 0 8px 0; line-height: 1.2; }
 
-.mm-statewide-notice { background: #e1e9ee; padding: 10px; border-radius: 8px; border: 1px solid var(--primary-blue); font-size: 12px; color: #33444d; text-align: center; margin-bottom: 12px; }
-.mmtabs { display: flex; gap: 4px; border-bottom: 1px solid var(--border-color); margin-bottom: 12px; }
-.mmtabs button { flex: 1; padding: 8px 4px; background: none; border: none; cursor: pointer; font-size: 10px; font-weight: 800; color: #777; border-bottom: 2px solid transparent; text-transform: uppercase; }
-.mmtabs button.active { color: var(--primary-blue); border-bottom-color: var(--primary-blue); }
+.mmcard__title {
+  font-size: 17px;
+  font-weight: 800;
+  color: #222;
+  margin: 0 0 8px 0;
+  line-height: 1.2;
+}
 
-.tab-pane { font-size: 13px; line-height: 1.5; color: #333; }
+/* ✅ Added: summary card subtitle styling to match overall card system */
+.mmcard__subtitle-label {
+  display: block;
+  font-size: 11px;
+  font-weight: 800;
+  color: #777;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  margin-top: 4px;
+  margin-bottom: 6px;
+}
+
+.mmcard__subtitle {
+  font-size: 13px;
+  line-height: 1.45;
+  color: #333;
+  margin-bottom: 12px;
+}
+
+/* ✅ Added: consistent section headers/labels used in summary blocks */
+.summary-section-title {
+  margin: 14px 0 6px;
+  font-size: 11px;
+  font-weight: 900;
+  color: #888;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.area-label {
+  margin-top: 10px;
+  margin-bottom: 4px;
+  font-size: 12px;
+  font-weight: 800;
+  color: #333;
+}
+
+/* ✅ Added: shared bullet layout (used by BOTH summary + feature cards) */
+.mm-bullet-container {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  margin: 4px 0;
+}
+
+.mm-bullet-point {
+  flex: 0 0 auto;
+  line-height: 1.4;
+  color: #333;
+}
+
+.mm-bullet-text {
+  flex: 1;
+  line-height: 1.45;
+  color: #333;
+}
+
+/* Divider between summary + detail cards */
+.section-divider {
+  margin: 12px 0 15px;
+  padding: 8px 10px;
+  background: var(--bg-light);
+  border: 1px dashed var(--border-color);
+  border-radius: 8px;
+  font-size: 11px;
+  font-weight: 900;
+  color: #777;
+  text-transform: uppercase;
+  text-align: center;
+}
+
+/* Statewide notice */
+.mm-statewide-notice {
+  background: #e1e9ee;
+  padding: 10px;
+  border-radius: 8px;
+  border: 1px solid var(--primary-blue);
+  font-size: 12px;
+  color: #33444d;
+  text-align: center;
+  margin-bottom: 12px;
+}
+
+.mmtabs {
+  display: flex;
+  gap: 4px;
+  border-bottom: 1px solid var(--border-color);
+  margin-bottom: 12px;
+}
+
+.mmtabs button {
+  flex: 1;
+  padding: 8px 4px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 10px;
+  font-weight: 800;
+  color: #777;
+  border-bottom: 2px solid transparent;
+  text-transform: uppercase;
+}
+
+.mmtabs button.active {
+  color: var(--primary-blue);
+  border-bottom-color: var(--primary-blue);
+}
+
+/* Shared tab pane text style */
+.tab-pane {
+  font-size: 13px;
+  line-height: 1.5;
+  color: #333;
+}
+
+/* ✅ Added: style for your "OFFICIAL DAR PAGE" + "VIEW HAR PDF" links */
+.reg-link {
+  display: block;
+  margin-top: 12px;
+  padding: 10px 12px;
+  background: var(--primary-blue);
+  color: #fff;
+  text-decoration: none;
+  border-radius: 10px;
+  font-size: 12px;
+  font-weight: 900;
+  text-align: center;
+}
+
+.reg-link:hover {
+  filter: brightness(1.05);
+}
 
 /* Scrollbar customization */
 .island-list::-webkit-scrollbar, .info-content::-webkit-scrollbar { width: 6px; }
@@ -168,6 +368,24 @@ body, html {
 /* =============================== */
 @media (max-width: 768px) {
   .map-sidebar { width: calc(100% - 30px); left: 15px; }
-  .info-sidebar { width: calc(100% - 30px); left: 15px; top: 15px; height: calc(100vh - 30px); transform: translateY(110%); }
+
+  .info-sidebar {
+    width: calc(100% - 30px);
+    left: 15px;
+    top: 15px;
+    height: calc(100vh - 30px);
+    transform: translateY(110%);
+  }
+
   .info-sidebar.active { transform: translateY(0); }
+
+  /* Keep toggle button visible on mobile: align to right edge when expanded */
+  .sidebar-edge-toggle {
+    left: calc(100% - (var(--panel-margin) + 28px)); /* fully inside viewport */
+    top: calc(var(--panel-margin) + 14px);
+  }
+
+  .map-sidebar.collapsed ~ .sidebar-edge-toggle {
+    left: calc(var(--panel-margin) + var(--collapsed-width) - 14px);
+  }
 }
