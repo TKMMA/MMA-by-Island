@@ -1,30 +1,36 @@
-<div class="map-interface">
-    <aside id="map-sidebar" class="map-sidebar">
-        <button onclick="toggleSidebar()" class="pane-toggle-btn left-toggle" title="Toggle Areas">◀</button>
-        
-        <div class="sidebar-content">
-            <div class="sidebar-header">
-                <h2>Regulated Areas</h2>
-                <div class="search-box">
-                    <input type="text" id="area-search" placeholder="Search areas..." onkeyup="filterSidebar()">
+<body>
+    <div class="map-interface">
+        <aside id="map-sidebar" class="map-sidebar">
+            <button onclick="toggleSidebar()" class="pane-toggle-btn left-toggle" title="Toggle Areas">◀</button>
+            <div class="sidebar-content">
+                <div class="sidebar-header">
+                    <h2>Regulated Areas</h2>
+                    <div class="search-box">
+                        <input type="text" id="area-search" placeholder="Search areas..." onkeyup="filterSidebar()">
+                    </div>
+                </div>
+                <div id="island-list" class="island-list"></div>
+            </div>
+        </aside>
+
+        <main class="map-container">
+            <div id="map"></div>
+        </main>
+
+        <aside id="info-sidebar" class="info-sidebar">
+            <button onclick="toggleInfoSidebar()" class="pane-toggle-btn right-toggle" title="Toggle Info">▶</button>
+            <div class="sidebar-content">
+                <div class="sidebar-header">
+                    <h2 id="info-title">Area Details</h2>
+                </div>
+                <div id="info-body" class="info-body">
+                    <p class="placeholder-text">Select an area to view regulations.</p>
                 </div>
             </div>
-            <div id="island-list" class="island-list"></div>
-        </div>
-    </aside>
+        </aside>
+    </div>
 
-    <aside id="info-sidebar" class="info-sidebar">
-        <button onclick="toggleInfoSidebar()" class="pane-toggle-btn right-toggle" title="Toggle Info">▶</button>
-        
-        <div class="sidebar-content">
-            <div class="sidebar-header">
-                <h2 id="info-title">Area Details</h2>
-            </div>
-            <div id="info-body" class="info-body">
-                <p class="placeholder-text">Select an area to view regulations.</p>
-            </div>
-        </div>
-    </aside>
-
-    <main id="map"></main>
-</div>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="script.js"></script>
+</body>
