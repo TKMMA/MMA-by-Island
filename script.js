@@ -332,8 +332,17 @@ function openMultiPopup(latlng, features) {
   }).join("");
 
   const headerTitle = features.length === 1 ? "1 Area Selected" : `${features.length} Areas Selected`;
-  L.popup({ maxWidth: 360, minWidth: 360 }).setLatLng(latlng).setContent(`${style}<div class="mmpopup"><div class="mmpopup__header"><div class="mmpopup__header-title">${headerTitle}</div></div><div class="mmpopup__scroll">${summaryCardHtml}${sectionDividerHtml}${individualCardsHtml}</div></div>`).openOn(map);
-}
+ // Create or update the docked popup
+  L.popup({ 
+    maxWidth: 360, 
+    minWidth: 360, 
+    className: 'leaflet-popup-docked', // Use our new CSS class
+    autoPan: false,
+    closeOnClick: false 
+  })
+    .setLatLng(map.getBounds().getNorthWest()) // Anchor to top-left of viewport
+    .setContent(`${style}<div class="mmpopup"><div class="mmpopup__header"><div class="mmpopup__header-title">${headerTitle}</div></div><div class="mmpopup__scroll">${summaryCardHtml}${sectionDividerHtml}${individualCardsHtml}</div></div>`)
+    .openOn(map);
 
 // ===============================
 // 7) LOAD LAYERS
@@ -359,26 +368,32 @@ async function loadIslandLayer(config) {
         }
         return { weight: 1.2, fillOpacity: 0.3, color: "#005a87" };
       },
-      onEachFeature: function (feature, layer) {
+     onEachFeature: function (feature, layer) {
         layer.on("click", function (e) {
           L.DomEvent.stopPropagation(e);
+          
+          // 1. Center map and drop a temporary pin
+          map.setView(e.latlng, map.getZoom());
+          if (window.currentPin) map.removeLayer(window.currentPin);
+          window.currentPin = L.marker(e.latlng).addTo(map);
+
+          // 2. Clear old flashes and find all intersecting polygons
+          document.querySelectorAll('.leaflet-interactive').forEach(el => el.classList.remove('selected-polygon-flash'));
+          
           const hits = [];
           Object.values(allIslandLayers).forEach(islandLayerGroup => {
             if (map.hasLayer(islandLayerGroup)) {
               islandLayerGroup.eachLayer(l => {
-                if (l instanceof L.Polygon && latlngInPolygon(e.latlng, l, map)) hits.push(l.feature);
+                if (l instanceof L.Polygon && latlngInPolygon(e.latlng, l, map)) {
+                  hits.push(l.feature);
+                  // 3. Add the flash class to the SVG element
+                  if (l._path) l._path.classList.add('selected-polygon-flash');
+                }
               });
             }
           });
+          
           if (hits.length) openMultiPopup(e.latlng, hits);
         });
       }
-    }).addTo(map);
-
-    allIslandLayers[config.name] = geoLayer;
-    populateSidebar(config.name, geojsonData.features);
-
-  } catch (e) { console.error(e); }
-}
-
 islandConfigs.forEach((cfg) => loadIslandLayer(cfg));
