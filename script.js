@@ -212,137 +212,75 @@ function openMultiPopup(latlng, features) {
   const style = `
     <style>
       .leaflet-popup-content { margin: 0 !important; }
-      .leaflet-popup-content-wrapper { padding: 0 !important; border-radius: 12px !important; }
-      .mmpopup { width: 360px; max-width: 360px; background: #ffffff; border-radius: 12px; overflow: hidden; font-family: sans-serif; }
-      .mmpopup__header { padding: 12px 14px; background: #f6f6f6; border-bottom: 1px solid #e6e6e6; text-align: center; }
-      .mmpopup__header-title { font-size: 11px; font-weight: 800; color: #666; letter-spacing: 0.02em; }
-      .mmpopup__scroll { max-height: 440px; overflow-y: auto; padding: 12px; box-sizing: border-box; background: #ffffff; scrollbar-gutter: stable both-edges; scrollbar-width: thin; }
-      .mmcard { border: 1px solid #e5e5e5; border-radius: 10px; overflow: hidden; background: #fff; box-shadow: 0 2px 10px rgba(0,0,0,0.06); margin-bottom: 12px; }
+      .leaflet-popup-content-wrapper { padding: 0 !important; border-radius: 8px !important; box-shadow: 4px 0 15px rgba(0,0,0,0.1) !important; }
+      .mmpopup { width: 320px; background: #ffffff; border-radius: 8px; overflow: hidden; font-family: sans-serif; display: flex; flex-direction: column; height: 650px; }
+      .mmpopup__header { padding: 10px; background: #f6f6f6; border-bottom: 1px solid #e6e6e6; text-align: center; flex-shrink: 0; }
+      .mmpopup__header-title { font-size: 10px; font-weight: 800; color: #666; text-transform: uppercase; }
+      .mmpopup__scroll { flex-grow: 1; overflow-y: auto; padding: 12px; background: #ffffff; scrollbar-width: thin; }
+      .mmcard { border: 1px solid #e5e5e5; border-radius: 8px; overflow: hidden; background: #fff; margin-bottom: 12px; }
       .mmcard--summary { border: 2px solid #005a87; background: #f0f7fb; }
-      .mmcard__body { padding: 12px 12px 10px; }
-      .section-divider { display: flex; align-items: center; text-align: center; margin: 20px 0 15px 0; color: #888; font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.1em; }
-      .section-divider::before, .section-divider::after { content: ''; flex: 1; border-bottom: 1px solid #e6e6e6; }
-      .mmcard__title { font-size: 16px; line-height: 1.2; margin: 0 0 10px 0; font-weight: 800; color: #222; }
-      .mmcard__subtitle { font-size: 13px; color: #005a87; font-weight: 700; margin-bottom: 12px; line-height: 1.6; }
-      .mm-statewide-notice { background: #e1e9ee; padding: 12px; border-radius: 8px; border: 1px solid #005a87; font-size: 12px; line-height: 1.45; margin-bottom: 14px; color: #33444d; text-align: center; }
-      .mm-statewide-notice a { color: #005a87; font-weight: 800; text-decoration: underline; }
-      .mmtabs { display: flex; gap: 8px; border-bottom: 1px solid #e6e6e6; margin-bottom: 10px; flex-wrap: wrap; }
-      .mmtabs button { flex: 1; min-width: 60px; background: none; border: none; cursor: pointer; padding: 8px 4px; font-size: 9px; font-weight: 800; color: #444; border-bottom: 2px solid transparent; text-transform: uppercase; }
+      .mmcard__body { padding: 10px; }
+      .mmcard__title { font-size: 15px; line-height: 1.2; margin: 0 0 8px 0; font-weight: 800; color: #222; }
+      .mmtabs { display: flex; gap: 4px; border-bottom: 1px solid #e6e6e6; margin-bottom: 10px; }
+      .mmtabs button { flex: 1; background: none; border: none; cursor: pointer; padding: 6px 2px; font-size: 9px; font-weight: 800; color: #444; border-bottom: 2px solid transparent; }
       .mmtabs button.active { color: #005a87; border-bottom-color: #005a87; }
-      .mmtabpane { font-size: 13px; line-height: 1.45; color: #222; }
-      .summary-section-title { font-weight: 800; color: #005a87; margin-top: 14px; margin-bottom: 4px; border-bottom: 1px solid #cce0eb; font-size: 11px; text-transform: uppercase; }
-      .area-label { font-size: 11px; font-weight: 800; color: #555; margin-top: 8px; margin-bottom: 2px; }
-      .reg-link { color: #005a87; font-weight: 800; text-decoration: none; display: block; margin-top: 4px; }
-      .mm-bullet-container { display: flex; align-items: flex-start; margin-bottom: 6px; }
-      .mm-bullet-point { min-width: 14px; font-weight: bold; color: #005a87; }
-      .mm-bullet-text { flex: 1; }
+      .mmtabpane { font-size: 12px; line-height: 1.4; color: #222; }
+      .mm-bullet-container { display: flex; align-items: flex-start; margin-bottom: 4px; }
+      .mm-bullet-point { min-width: 12px; font-weight: bold; color: #005a87; }
     </style>
   `;
 
+  // Helper inside the popup to handle formatting
   const formatBulletsWithIndents = (text) => {
     if (!text || text === "N/A") return "N/A";
     const lines = String(text).split(/\r?\n/).map(l => l.trim()).filter(Boolean);
-    return lines.map(l => `<div class="mm-bullet-container"><span class="mm-bullet-point">•</span><span class="mm-bullet-text">${l.replace(/^[•●○◦*-]\s+/, "").trim()}</span></div>`).join("");
+    return lines.map(l => `<div class="mm-bullet-container"><span class="mm-bullet-point">•</span><span>${l.replace(/^[•●○◦*-]\s+/, "").trim()}</span></div>`).join("");
   };
 
   let summaryCardHtml = "";
-  let sectionDividerHtml = "";
-
   if (features.length > 1) {
-    const areaNamesHtml = features.map(f => `<div class="mm-bullet-container"><span class="mm-bullet-point">•</span><span class="mm-bullet-text">${getVal(f.properties, "Full_name") || getVal(f.properties, "Full_Name") || "Unknown Area"}</span></div>`).join("");
-    const stateRegsUrl = getVal(features[0].properties, "State_Fishing_Regs_URL") || "https://dlnr.hawaii.gov/dar/fishing/fishing-regulations/";
-
-    const buildSummaryBlock = (title, fieldKey) => {
-      const items = features.map(f => ({ name: getVal(f.properties, "Full_name") || getVal(f.properties, "Full_Name"), val: getVal(f.properties, fieldKey) })).filter(i => i.val);
-      if (!items.length) return "";
-      return `<div class="summary-section-title">${title}</div>` + items.map(item => `<div class="area-label">${item.name}:</div><div style="margin-bottom:8px;">${formatBulletsWithIndents(item.val)}</div>`).join("");
-    };
-
+    const areaNamesHtml = features.map(f => `<div class="mm-bullet-container"><span class="mm-bullet-point">•</span><span>${getVal(f.properties, "Full_Name") || "Unknown"}</span></div>`).join("");
     summaryCardHtml = `
-      <div class="area-section mmcard mmcard--summary">
+      <div class="mmcard mmcard--summary">
         <div class="mmcard__body">
-          <h3 class="mmcard__title">Fishing Rules Summary</h3>
-          <span class="mmcard__subtitle-label">Managed Areas at this Location:</span>
-          <div class="mmcard__subtitle">${areaNamesHtml}</div>
-          <div class="mm-statewide-notice">The site-specific rules below apply in addition to all <a href="${stateRegsUrl}" target="_blank">Statewide Fishing Regulations</a>.</div>
-          <div class="mmtabs"><button class="active">CONSOLIDATED RULES</button></div>
-          <div class="mmtabpane">
-            ${buildSummaryBlock("Gear Restrictions", "Rules_Gear")}
-            ${buildSummaryBlock("Species & Bag Limits", "Rules_Species_Size_Bag")}
-            ${buildSummaryBlock("Prohibited Activities", "Rules_Activities")}
-            ${buildSummaryBlock("Seasons & Times Rules", "Rules_Seasons_Times")}
-            ${buildSummaryBlock("Transit & Anchor Rules", "Rules_Transit_Anchor")}
-          </div>
+          <h3 class="mmcard__title">Rules Summary</h3>
+          <div class="mmtabpane">${areaNamesHtml}</div>
         </div>
       </div>`;
-    sectionDividerHtml = `<div class="section-divider">Detailed Area Information Below</div>`;
   }
 
   const individualCardsHtml = features.map((feature, index) => {
     const props = feature.properties;
     const uid = `area-${index}`;
-    const name = getVal(props, "Full_name") || getVal(props, "Full_Name") || "Unknown Area";
-    const img = getVal(props, "Area_Image_URL_1") || getVal(props, "Area_Image_URL_2") || getVal(props, "Area_Image_URL_3");
-    const stateUrl = getVal(props, "State_Fishing_Regs_URL") || "https://dlnr.hawaii.gov/dar/fishing/fishing-regulations/";
-
-    const renderFieldIndented = (alias, value, isBullet = false, isDate = false) => {
-      if (!value || value === "N/A" || value === "") return "";
-      const displayValue = isDate ? formatDate(value) : isBullet ? formatBulletsWithIndents(value) : value;
-      return `<div style="margin-bottom:12px;"><div style="font-weight:700; margin-bottom:2px;">${alias}</div><div>${displayValue}</div></div>`;
-    };
-
+    const name = getVal(props, "Full_Name") || "Unknown Area";
     return `
-    <div class="area-section mmcard">
-      ${img ? `<img style="width:100%; aspect-ratio:16/9; object-fit:cover; display:block;" src="${img}">` : ""}
+    <div class="mmcard">
       <div class="mmcard__body">
         <h3 class="mmcard__title">${name}</h3>
         <div class="mmtabs">
           <button class="active" onclick="showTab(this,'about-${uid}')">ABOUT</button>
           <button onclick="showTab(this,'rules-${uid}')">RULES</button>
-          <button onclick="showTab(this,'laws-${uid}')">LAWS</button>
         </div>
         <div id="about-${uid}" class="tab-pane mmtabpane" style="display:block;">
-          ${renderFieldIndented("Designation", joinFields(props, "Designation_1", "Designation_2", "Designation_3"))}
-          ${renderFieldIndented("Island", getVal(props, "Island"))}
-          ${renderFieldIndented("Purpose", getVal(props, "Purpose"), true)}
-          ${renderFieldIndented("Cultural Info", getVal(props, "Cultural"), true)}
-          ${renderFieldIndented("Fishing Info", getVal(props, "Fishing_Info"), true)}
-          ${renderFieldIndented("Date Established", getVal(props, "Establish_Date"), false, true)}
-          ${renderFieldIndented("Date Modified", getVal(props, "Modify_Date"), false, true)}
-          ${renderFieldIndented("Location", getVal(props, "Location"))}
-          ${getVal(props, "DAR_URL") ? `<a class="reg-link" href="${getVal(props, "DAR_URL")}" target="_blank">OFFICIAL DAR PAGE ›</a>` : ""}
+          <strong>Island:</strong> ${getVal(props, "Island")}<br>
+          <strong>Designation:</strong> ${getVal(props, "Designation_1")}
         </div>
         <div id="rules-${uid}" class="tab-pane mmtabpane" style="display:none;">
-          <div class="mm-statewide-notice">The site-specific rules below apply in addition to all <a href="${stateUrl}" target="_blank">Statewide Fishing Regulations</a>.</div>
-          ${renderFieldIndented("Gear Rules", getVal(props, "Rules_Gear"), true)}
-          ${renderFieldIndented("Species & Bag Limits", getVal(props, "Rules_Species_Size_Bag"), true)}
-          ${renderFieldIndented("Activities Rules", getVal(props, "Rules_Activities"), true)}
-          ${renderFieldIndented("Seasons & Times Rules", getVal(props, "Rules_Seasons_Times"), true)}
-          ${renderFieldIndented("Transit & Anchor Rules", getVal(props, "Rules_Transit_Anchor"), true)}
-          ${renderFieldIndented("Additional Rules", getVal(props, "Rules_Also_Text"), true)}
-        </div>
-        <div id="laws-${uid}" class="tab-pane mmtabpane" style="display:none;">
-          ${getVal(props, "HAR_Name") ? `<div><strong>HAR Name:</strong> ${getVal(props, "HAR_Name")}</div>` : ""}
-          ${getVal(props, "HAR_Link") ? `<a class="reg-link" href="${getVal(props, "HAR_Link")}" target="_blank">VIEW HAR PDF ›</a>` : ""}
-          ${renderFieldIndented("Penalties", getVal(props, "Penalties"), true)}
-          ${renderFieldIndented("Management Authority", getVal(props, "Mgmt_Auth"))}
+          ${formatBulletsWithIndents(getVal(props, "Rules_Gear"))}
         </div>
       </div>
     </div>`;
   }).join("");
 
-  const headerTitle = features.length === 1 ? "1 Area Selected" : `${features.length} Areas Selected`;
-
-  // Create or update the docked popup
   L.popup({
-    maxWidth: 360,
-    minWidth: 360,
+    maxWidth: 320, // Matches Sidebar Width
+    minWidth: 320,
     className: 'leaflet-popup-docked',
     autoPan: false,
     closeOnClick: false
   })
     .setLatLng(map.getBounds().getNorthWest())
-    .setContent(`${style}<div class="mmpopup"><div class="mmpopup__header"><div class="mmpopup__header-title">${headerTitle}</div></div><div class="mmpopup__scroll">${summaryCardHtml}${sectionDividerHtml}${individualCardsHtml}</div></div>`)
+    .setContent(`${style}<div class="mmpopup"><div class="mmpopup__header"><div class="mmpopup__header-title">${features.length} Areas Selected</div></div><div class="mmpopup__scroll">${summaryCardHtml}${individualCardsHtml}</div></div>`)
     .openOn(map);
 }
 
@@ -355,46 +293,37 @@ async function loadIslandLayer(config) {
     const metadataResp = await fetch(`${layerUrl}?f=json`);
     const metadata = await metadataResp.json();
     const renderer = metadata?.drawingInfo?.renderer;
-    const globalOpacity = (100 - (metadata?.drawingInfo?.transparency || 0)) / 100;
-
+    
     const dataResp = await fetch(`${layerUrl}/query?where=1=1&outFields=*&f=geojson&returnGeometry=true`);
     const geojsonData = await dataResp.json();
 
     const geoLayer = L.geoJSON(geojsonData, {
       style: function (feature) {
-        const fName = (getVal(feature.properties, "Full_Name") || getVal(feature.properties, "Full_name") || "").toLowerCase();
-        const match = renderer?.uniqueValueInfos?.find((info) => String(info.value || "").toLowerCase() === fName);
-        if (match) {
-          const c = match.symbol.color;
-          return { fillColor: `rgba(${c[0]},${c[1]},${c[2]},${c[3] / 255})`, fillOpacity: globalOpacity, color: `rgb(${match.symbol.outline.color[0]},${match.symbol.outline.color[1]},${match.symbol.outline.color[2]})`, weight: 1.5 };
-        }
         return { weight: 1.2, fillOpacity: 0.3, color: "#005a87" };
       },
       onEachFeature: function (feature, layer) {
         layer.on("click", function (e) {
           L.DomEvent.stopPropagation(e);
-
-          // 1. Center map and drop a temporary pin
           map.setView(e.latlng, map.getZoom());
           if (window.currentPin) map.removeLayer(window.currentPin);
           window.currentPin = L.marker(e.latlng).addTo(map);
 
-          // 2. Clear old flashes
+          // Clear previous flashes
           document.querySelectorAll('.leaflet-interactive').forEach(el => el.classList.remove('selected-polygon-flash'));
 
           const hits = [];
           Object.values(allIslandLayers).forEach(islandLayerGroup => {
-            if (map.hasLayer(islandLayerGroup)) {
-              islandLayerGroup.eachLayer(l => {
-                if (l instanceof L.Polygon && latlngInPolygon(e.latlng, l, map)) {
-                  hits.push(l.feature);
-                  // 3. Add the flash class to the SVG element
-                  if (l._path) l._path.classList.add('selected-polygon-flash');
+            islandLayerGroup.eachLayer(l => {
+              if (l instanceof L.Polygon && latlngInPolygon(e.latlng, l, map)) {
+                hits.push(l.feature);
+                if (l._path) {
+                  l._path.classList.add('selected-polygon-flash');
+                  // REMOVE FLASH AFTER 1 SECOND
+                  setTimeout(() => { l._path.classList.remove('selected-polygon-flash'); }, 1000);
                 }
-              });
-            }
+              }
+            });
           });
-
           if (hits.length) openMultiPopup(e.latlng, hits);
         });
       }
@@ -402,69 +331,6 @@ async function loadIslandLayer(config) {
 
     allIslandLayers[config.name] = geoLayer;
     populateSidebar(config.name, geojsonData.features);
-
-  } catch (e) { console.error(e); }
-}
-
-islandConfigs.forEach((cfg) => loadIslandLayer(cfg));
-
-// ===============================
-// 7) LOAD LAYERS
-// ===============================
-async function loadIslandLayer(config) {
-  const layerUrl = `${config.baseUrl}/${config.layerId}`;
-  try {
-    const metadataResp = await fetch(`${layerUrl}?f=json`);
-    const metadata = await metadataResp.json();
-    const renderer = metadata?.drawingInfo?.renderer;
-    const globalOpacity = (100 - (metadata?.drawingInfo?.transparency || 0)) / 100;
-    
-    const dataResp = await fetch(`${layerUrl}/query?where=1=1&outFields=*&f=geojson&returnGeometry=true`);
-    const geojsonData = await dataResp.json();
-    
-    const geoLayer = L.geoJSON(geojsonData, {
-      style: function (feature) {
-        const fName = (getVal(feature.properties, "Full_Name") || getVal(feature.properties, "Full_name") || "").toLowerCase();
-        const match = renderer?.uniqueValueInfos?.find((info) => String(info.value || "").toLowerCase() === fName);
-        if (match) {
-          const c = match.symbol.color;
-          return { fillColor: `rgba(${c[0]},${c[1]},${c[2]},${c[3] / 255})`, fillOpacity: globalOpacity, color: `rgb(${match.symbol.outline.color[0]},${match.symbol.outline.color[1]},${match.symbol.outline.color[2]})`, weight: 1.5 };
-        }
-        return { weight: 1.2, fillOpacity: 0.3, color: "#005a87" };
-      },
-     onEachFeature: function (feature, layer) {
-        layer.on("click", function (e) {
-          L.DomEvent.stopPropagation(e);
-          
-          // 1. Center map and drop a temporary pin
-          map.setView(e.latlng, map.getZoom());
-          if (window.currentPin) map.removeLayer(window.currentPin);
-          window.currentPin = L.marker(e.latlng).addTo(map);
-
-          // 2. Clear old flashes
-          document.querySelectorAll('.leaflet-interactive').forEach(el => el.classList.remove('selected-polygon-flash'));
-          
-          const hits = [];
-          Object.values(allIslandLayers).forEach(islandLayerGroup => {
-            if (map.hasLayer(islandLayerGroup)) {
-              islandLayerGroup.eachLayer(l => {
-                if (l instanceof L.Polygon && latlngInPolygon(e.latlng, l, map)) {
-                  hits.push(l.feature);
-                  // 3. Add the flash class to the SVG element
-                  if (l._path) l._path.classList.add('selected-polygon-flash');
-                }
-              });
-            }
-          });
-          
-          if (hits.length) openMultiPopup(e.latlng, hits);
-        });
-      } // Added missing bracket
-    }).addTo(map); // Added missing bracket
-
-    allIslandLayers[config.name] = geoLayer;
-    populateSidebar(config.name, geojsonData.features);
-
   } catch (e) { console.error(e); }
 }
 
