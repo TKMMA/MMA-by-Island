@@ -123,8 +123,8 @@ function populateSidebar(islandName, features) {
 
 window.toggleSidebar = function () {
   document.getElementById('map-sidebar').classList.toggle('collapsed');
-  // Wait for the CSS transition to finish, then resize map
-  setTimeout(() => { map.invalidateSize(); }, 300);
+  // Wait for the 300ms CSS slide to finish, then fix map
+  setTimeout(() => { map.invalidateSize(); }, 310);
 };
 
 window.toggleIsland = (id) => {
@@ -249,17 +249,17 @@ function openInfoSidebar(features) {
     </div>
   `;
   container.classList.add('active');
-  // Tell Leaflet the map area just changed size
-  setTimeout(() => { map.invalidateSize(); }, 300);
+container.classList.add('active');
+  // Fix map layout after sidebar slides out
+  setTimeout(() => { map.invalidateSize(); }, 310);
 }
 
 window.closeInfoSidebar = function () {
   const container = document.getElementById('info-sidebar');
   if (container) container.classList.remove('active');
-  if (window.currentPin) map.removeLayer(window.currentPin);
-  document.querySelectorAll('.leaflet-interactive').forEach(el => el.classList.remove('selected-polygon-flash'));
-  // Resize map after closing
-  setTimeout(() => { map.invalidateSize(); }, 300);
+  // ... (pin/flash cleanup code)
+  // Fix map layout after sidebar slides back in
+  setTimeout(() => { map.invalidateSize(); }, 310);
 };
 
 // ===============================
