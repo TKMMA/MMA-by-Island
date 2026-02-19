@@ -6,23 +6,25 @@ html, body {
     padding: 0;
     height: 100%;
     width: 100%;
+    overflow: hidden; /* Prevents double scrollbars */
 }
 
 .map-interface {
     display: flex;
-    flex-direction: row; /* Force side-by-side */
+    flex-direction: row; 
     width: 100vw;
     height: 100vh;
     position: relative;
     font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
-    overflow: hidden;
 }
 
 #map {
-    flex: 1; /* Map takes all remaining space */
+    flex: 1; /* Map takes up all remaining space */
+    min-width: 0; /* Critical for flex layouts to prevent map overflow */
     height: 100%;
     z-index: 1;
 }
+
 /* ===============================
    2) PRIMARY SIDEBAR (LIST)
    =============================== */
@@ -193,13 +195,12 @@ html, body {
     transition: width 0.3s ease;
     z-index: 5;
     overflow: hidden;
-    position: relative; /* Sits in line with the list and map */
-    flex-shrink: 0; /* Prevents it from being squashed */
+    position: relative;
+    flex-shrink: 0; /* Prevents the map from squashing the sidebar */
 }
 
 .info-sidebar.active {
     width: 320px;
-    min-width: 320px;
 }
 
 /* ===============================
