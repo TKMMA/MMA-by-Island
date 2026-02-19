@@ -66,28 +66,72 @@ body, html {
   cursor: pointer; border-radius: 4px;
 }
 
+/* Fixed Search Box Styles */
+.search-box {
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.search-input-wrapper {
+  position: relative;
+  width: 100%;
+}
+
 #area-search {
-  width: 100%; padding: 8px 35px 8px 12px;
-  border-radius: 20px; border: none; font-size: 14px;
-  outline: none; color: #333; background: #fff;
+  width: 100%;
+  padding: 10px 35px 10px 15px;
+  border-radius: 20px;
+  border: none;
+  font-size: 14px;
+  outline: none;
+  color: #333;
+  background: #fff;
+  box-sizing: border-box;
+  display: block;
+}
+
+.search-icon {
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #666;
+  pointer-events: none;
+  font-size: 14px;
 }
 
 /* Island Accordion List */
 .island-list { flex: 1; overflow-y: auto; }
 .island-group { border-bottom: 1px solid #eee; }
+
 .island-header {
-  display: flex; justify-content: space-between; align-items: center;
-  padding: 12px 15px; background: #fcfcfc; cursor: pointer;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 15px;
+  background: #fcfcfc;
+  cursor: pointer;
+  transition: background 0.2s;
 }
+
+.island-header:hover { background: #f0f7fb; }
+
 .header-left { display: flex; align-items: center; gap: 12px; font-weight: 700; color: #333; }
+.header-left input[type="checkbox"] { cursor: pointer; }
+
 .chevron { font-size: 10px; color: #888; transition: transform 0.3s; }
 .island-header.expanded .chevron { transform: rotate(180deg); }
 
 .area-list { display: none; background: #ffffff; }
 .area-list.active { display: block; }
+
 .area-item {
-  padding: 10px 15px 10px 45px; font-size: 13px; color: #555;
-  cursor: pointer; border-bottom: 1px solid #fafafa; line-height: 1.4;
+  padding: 10px 15px 10px 45px;
+  font-size: 13px;
+  color: #555;
+  cursor: pointer;
+  border-bottom: 1px solid #fafafa;
+  line-height: 1.4;
 }
 .area-item:hover { background: #f0f7fb; color: var(--primary-blue); font-weight: 600; }
 
@@ -103,15 +147,13 @@ body, html {
   z-index: 999;
   border-right: 1px solid #ddd;
   box-shadow: 5px 0 15px rgba(0,0,0,0.1);
-  transform: translateX(-100%); /* Start hidden behind navigation */
+  transform: translateX(-100%);
   transition: transform var(--transition-speed) ease-in-out;
   display: flex;
   flex-direction: column;
 }
 
 .info-sidebar.active { transform: translateX(0); }
-
-/* Navigation collapsed adjustment */
 .map-sidebar.collapsed + .info-sidebar { left: var(--collapsed-width); }
 
 .info-content { flex: 1; overflow-y: auto; padding-top: 50px; }
@@ -125,10 +167,9 @@ body, html {
   font-size: 18px; color: #666; z-index: 1001;
   box-shadow: 0 2px 5px rgba(0,0,0,0.1);
 }
-.close-info-btn:hover { background: #f0f0f0; color: #000; }
 
 /* =============================== */
-/* 3) POPUP & CARD STYLES (FROM JS)*/
+/* 3) CARD & TAB STYLES            */
 /* =============================== */
 .mmpopup { background: #ffffff; width: 100%; }
 .mmpopup__header { padding: 15px; background: var(--bg-light); border-bottom: 1px solid var(--border-color); text-align: center; }
@@ -149,14 +190,12 @@ body, html {
 
 .summary-section-title { font-weight: 800; color: var(--primary-blue); margin-top: 15px; border-bottom: 1px solid #cce0eb; font-size: 11px; text-transform: uppercase; }
 
-/* Tab System */
 .mmtabs { display: flex; gap: 5px; border-bottom: 1px solid var(--border-color); margin-bottom: 15px; }
 .mmtabs button { flex: 1; padding: 10px 5px; background: none; border: none; cursor: pointer; font-size: 10px; font-weight: 800; color: #666; border-bottom: 2px solid transparent; text-transform: uppercase; }
 .mmtabs button.active { color: var(--primary-blue); border-bottom-color: var(--primary-blue); }
 
 .tab-pane { font-size: 13px; line-height: 1.5; color: #333; }
 
-/* Lists & Bullets */
 .mm-bullet-container { display: flex; align-items: flex-start; margin-bottom: 8px; }
 .mm-bullet-point { min-width: 15px; color: var(--primary-blue); font-weight: bold; }
 .reg-link { color: var(--primary-blue); font-weight: 800; text-decoration: none; display: block; margin-top: 10px; font-size: 12px; }
