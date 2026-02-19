@@ -1,24 +1,36 @@
-<div class="map-interface">
-    <div id="map-sidebar" class="map-sidebar">
-        <div class="sidebar-header">
-            <div class="header-top">
-                <h2>Regulated Areas</h2>
-                <button onclick="toggleSidebar()" class="sidebar-toggle-btn" title="Toggle Sidebar">◀</button>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hawaiʻi Regulated Areas Map</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="map-interface">
+        <aside id="map-sidebar" class="map-sidebar">
+            <div class="sidebar-header">
+                <div class="header-top">
+                    <h2>Regulated Areas</h2>
+                    <button onclick="toggleSidebar()" class="sidebar-toggle-btn" title="Toggle Sidebar">◀</button>
+                </div>
+                <div class="search-box">
+                    <input type="text" id="area-search" placeholder="Search areas..." onkeyup="filterSidebar()">
+                    <span class="search-icon">🔍</span>
+                </div>
             </div>
-            <div class="search-box">
-                <input type="text" id="area-search" placeholder="Search areas..." onkeyup="filterSidebar()">
-                <span class="search-icon">🔍</span>
+            <div id="island-list" class="island-list">
+                <div class="loading-status">Loading island data...</div>
             </div>
-        </div>
-        <div id="island-list" class="island-list">
-            <div style="padding: 20px; color: #666; font-style: italic;">Loading island data...</div>
-        </div>
+        </aside>
+
+        <aside id="info-sidebar" class="info-sidebar"></aside>
+
+        <main id="map"></main>
     </div>
 
-    <div id="info-sidebar" class="info-sidebar"></div>
-
-    <div id="map"></div>
-</div>
-
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-<script src="script.js"></script>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="script.js"></script>
+</body>
+</html>
