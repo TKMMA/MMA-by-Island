@@ -1,217 +1,80 @@
-/* ===============================
-   1) CONTAINER & INTERFACE
-   =============================== */
-html, body {
-    margin: 0;
-    padding: 0;
-    height: 100%;
-    width: 100%;
-    overflow: hidden; /* Prevents double scrollbars */
+:root {
+    --pane-gap: 12px;
+    --pane-radius: 12px;
+    --primary-blue: #005a87;
+    --shadow: 0 4px 15px rgba(0,0,0,0.15);
 }
 
 .map-interface {
     display: flex;
-    flex-direction: row; 
-    width: 100vw;
-    height: 100vh;
-    position: relative;
-    font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+    padding: var(--pane-gap); /* Creates the gap around the edges */
+    gap: var(--pane-gap);      /* Creates the gap between sidebars */
+    height: calc(100vh - (var(--pane-gap) * 2));
+    background: #e5e5e5;      /* Map background peek-through */
 }
 
 #map {
-    flex: 1; /* Map takes up all remaining space */
-    min-width: 0; /* Critical for flex layouts to prevent map overflow */
-    height: 100%;
+    position: absolute;
+    top: 0; left: 0; 
+    width: 100%; height: 100%;
     z-index: 1;
 }
 
-/* ===============================
-   2) PRIMARY SIDEBAR (LIST)
-   =============================== */
-.map-sidebar {
-    width: 320px;
-    background: #ffffff;
-    border-right: 1px solid #ddd;
-    display: flex;
-    flex-direction: column;
-    transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-    z-index: 10;
-    box-shadow: 2px 0 5px rgba(0, 0, 0, 0.1);
-    flex-shrink: 0;
-}
-
-.map-sidebar.collapsed {
-    width: 45px;
-}
-
-/* ===============================
-   3) SIDEBAR HEADER & SEARCH
-   =============================== */
-.sidebar-header {
-    padding: 20px 15px;
-    background: #005a87;
-    color: white;
-}
-
-.header-top {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 15px;
-}
-
-.header-top h2 {
-    margin: 0;
-    font-size: 18px;
-    font-weight: 700;
-}
-
-.sidebar-toggle-btn {
-    background: rgba(255, 255, 255, 0.1);
-    border: none;
-    color: white;
-    padding: 5px 8px;
-    cursor: pointer;
-    border-radius: 4px;
-}
-
-.search-box {
+/* Common Pane Styles */
+.map-sidebar, .info-sidebar {
     position: relative;
-    width: 100%;
-    margin-top: 10px;
-}
-
-#area-search {
-    width: 100%;
-    padding: 10px 40px 10px 15px;
-    border-radius: 20px;
-    border: none;
-    font-size: 14px;
-    box-sizing: border-box;
-    outline: none;
-    color: #333 !important;
-}
-
-.search-icon {
-    position: absolute;
-    right: 15px;
-    top: 50%;
-    transform: translateY(-50%);
-    color: #666;
-    font-size: 16px;
-    pointer-events: none;
+    background: white;
+    height: 100%;
+    border-radius: var(--pane-radius);
+    box-shadow: var(--shadow);
     z-index: 10;
+    transition: width 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275), transform 0.3s ease;
+    overflow: visible; /* Allows toggle buttons to hang off the edge */
 }
 
-/* ===============================
-   4) ISLAND ACCORDION (LIST)
-   =============================== */
-.island-list {
-    flex: 1;
-    overflow-y: auto;
-}
-
-.island-group {
-    border-bottom: 1px solid #eee;
-}
-
-.island-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 12px 15px;
-    background: #fcfcfc;
-    cursor: pointer;
-    transition: background 0.2s ease;
-    user-select: none;
-    width: 100%;
-    box-sizing: border-box;
-}
-
-.island-header:hover {
-    background: #f0f7fb;
-}
-
-.header-left {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    font-weight: 700;
-    color: #333;
-}
-
-.header-left input[type="checkbox"] {
-    width: 16px;
-    height: 16px;
-    cursor: pointer;
-}
-
-.chevron {
-    font-size: 10px;
-    color: #888;
-    transition: transform 0.3s ease;
-}
-
-.island-header.expanded .chevron {
-    transform: rotate(180deg);
-}
-
-.area-list {
-    display: none;
-    background: #ffffff;
-}
-
-.area-item {
-    padding: 10px 15px 10px 45px;
-    font-size: 13px;
-    color: #555;
-    cursor: pointer;
-    border-bottom: 1px solid #fafafa;
-    transition: all 0.2s;
-}
-
-.area-item:hover {
-    background: #f0f7fb;
-    color: #005a87;
-    font-weight: 600;
-}
-
-.map-sidebar.collapsed .header-top h2,
-.map-sidebar.collapsed .search-box,
-.map-sidebar.collapsed .island-list {
-    display: none;
-}
-
-/* ===============================
-   5) SECONDARY INFO SIDEBAR
-   =============================== */
-.info-sidebar {
-    width: 0; 
-    background: #fcfcfc;
-    border-right: 1px solid #ddd;
+.sidebar-content {
     display: flex;
     flex-direction: column;
     height: 100%;
-    transition: width 0.3s ease;
-    z-index: 5;
     overflow: hidden;
-    position: relative;
-    flex-shrink: 0; /* Prevents the map from squashing the sidebar */
+    border-radius: var(--pane-radius);
 }
 
-.info-sidebar.active {
-    width: 320px;
+/* Sidebar Widths */
+.map-sidebar { width: 320px; }
+.map-sidebar.collapsed { width: 0; transform: translateX(-20px); opacity: 0; pointer-events: none; }
+
+.info-sidebar { width: 0; opacity: 0; transform: translateX(20px); pointer-events: none; }
+.info-sidebar.active { width: 350px; opacity: 1; transform: translateX(0); pointer-events: auto; }
+
+/* Handsome Toggle Buttons */
+.pane-toggle-btn {
+    position: absolute;
+    top: 20px;
+    width: 30px;
+    height: 60px;
+    background: white;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: var(--shadow);
+    z-index: 11;
+    transition: background 0.2s;
 }
 
-/* ===============================
-   6) ANIMATIONS & EFFECTS
-   =============================== */
-@keyframes polygon-flash {
-    0% { stroke-width: 2; stroke: #3388ff; }
-    50% { stroke-width: 10; stroke: #ffcc00; }
-    100% { stroke-width: 2; stroke: #3388ff; }
+.pane-toggle-btn:hover { background: #f9f9f9; }
+
+/* Positioning the buttons in the "Gaps" */
+.left-toggle { right: -42px; } /* Sits in the gap to the right of primary sidebar */
+.right-toggle { left: -42px; } /* Sits in the gap to the left of info sidebar */
+
+.sidebar-header {
+    padding: 20px;
+    background: var(--primary-blue);
+    color: white;
 }
 
-.selected-polygon-flash {
-    animation: polygon-flash 1s ease-in-out 1;
-}
+.info-body { padding: 20px; line-height: 1.6; }
