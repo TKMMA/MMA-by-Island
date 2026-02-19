@@ -58,15 +58,30 @@
 
 .search-box {
     position: relative;
+    width: 100%;
+    margin-top: 10px;
 }
 
 #area-search {
     width: 100%;
-    padding: 8px 35px 8px 12px;
+    padding: 10px 40px 10px 15px; /* Added space on right for the icon */
     border-radius: 20px;
     border: none;
     font-size: 14px;
     box-sizing: border-box;
+    outline: none;
+    color: #333 !important; /* Ensures text is visible */
+}
+
+.search-icon {
+    position: absolute;
+    right: 15px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #666;
+    font-size: 16px;
+    pointer-events: none;
+    z-index: 10; /* Brings it to the front */
 }
 
 /* Island Accordion List */
