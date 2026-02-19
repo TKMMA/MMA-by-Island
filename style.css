@@ -1,0 +1,181 @@
+/* Container Layout */
+.map-interface {
+  display: flex;
+  width: 100%;
+  height: 800px; /* Adjust height as needed */
+  position: relative;
+  font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  border: 1px solid #ddd;
+  overflow: hidden;
+}
+
+#map {
+  flex: 1;
+  height: 100%;
+  z-index: 1;
+}
+
+/* Sidebar Base Styles */
+.map-sidebar {
+  width: 320px;
+  background: #ffffff;
+  border-right: 1px solid #ddd;
+  display: flex;
+  flex-direction: column;
+  transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  z-index: 10;
+  box-shadow: 2px 0 5px rgba(0,0,0,0.1);
+}
+
+/* Collapsed Sidebar State */
+.map-sidebar.collapsed {
+  width: 45px;
+}
+.map-sidebar.collapsed .header-top h2,
+.map-sidebar.collapsed .search-box,
+.map-sidebar.collapsed .island-list {
+  display: none;
+}
+.map-sidebar.collapsed .sidebar-toggle-btn {
+  transform: rotate(180deg);
+  margin: 0 auto;
+}
+
+/* Sidebar Header */
+.sidebar-header {
+  padding: 20px 15px;
+  background: #005a87; /* Match your brand blue */
+  color: white;
+}
+
+.header-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 15px;
+}
+
+.header-top h2 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+}
+
+.sidebar-toggle-btn {
+  background: rgba(255,255,255,0.1);
+  border: none;
+  color: white;
+  padding: 5px 8px;
+  cursor: pointer;
+  border-radius: 4px;
+  transition: background 0.2s;
+}
+
+.sidebar-toggle-btn:hover {
+  background: rgba(255,255,255,0.2);
+}
+
+/* Search Bar */
+.search-box {
+  position: relative;
+}
+
+.search-box input {
+  width: 100%;
+  padding: 8px 35px 8px 12px;
+  border-radius: 20px;
+  border: none;
+  font-size: 14px;
+  outline: none;
+}
+
+.search-icon {
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #666;
+  pointer-events: none;
+}
+
+/* Island Accordion List */
+.island-list {
+  flex: 1;
+  overflow-y: auto;
+}
+
+.island-group {
+  border-bottom: 1px solid #eee;
+}
+
+.island-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 15px;
+  background: #fcfcfc;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.island-header:hover {
+  background: #f0f7fb;
+}
+
+.header-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-weight: 700;
+  color: #333;
+}
+
+.header-left input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
+}
+
+.chevron {
+  font-size: 10px;
+  color: #888;
+  transition: transform 0.3s;
+}
+
+.island-header.expanded .chevron {
+  transform: rotate(180deg);
+}
+
+/* Area Items (The Sub-menu) */
+.area-list {
+  display: none;
+  background: #ffffff;
+}
+
+.area-list.active {
+  display: block;
+}
+
+.area-item {
+  padding: 10px 15px 10px 45px;
+  font-size: 13px;
+  color: #555;
+  cursor: pointer;
+  border-bottom: 1px solid #fafafa;
+  line-height: 1.4;
+}
+
+.area-item:hover {
+  background: #f0f7fb;
+  color: #005a87;
+  font-weight: 600;
+}
+/* Fix for invisible search text */
+#area-search {
+  color: #333 !important; /* Forces text to be dark grey */
+  background-color: #fff;
+  padding: 8px 35px 8px 12px;
+  width: 100%;
+  box-sizing: border-box;
+}
