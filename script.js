@@ -91,9 +91,36 @@ function latlngInPolygon(latlng, layer, map) {
     }
     return inside;
   };
-  
   return layer._parts.some(ring => insideRing(ring));
 }
+
+function populateSidebar(islandName, features) {
+  const container = document.getElementById('island-list');
+  if (!container) return;
+  const islandId = islandName.toLowerCase().replace(/[^\w]/g, "-");
+  const group = document.createElement('div');
+  group.className = 'island-group';
+  
+  const areaItems = features.map(f => {
+    const name = getVal(f.properties, "Full_Name") || getVal(f.properties, "Full_name") || "Unknown Area";
+    return `<div class="area-item" onclick="zoomToArea('${islandName}', '${name}')">${name}</div>`;
+  }).sort((a, b) => a.localeCompare(b)).join('');
+
+  group.innerHTML = `
+    <div class="island-header" id="header-${islandId}" onclick="toggleIsland('${islandId}')">
+      <div class="header-left">
+        <input type="checkbox" checked onclick="toggleLayerVisibility(event, '${islandName}')">
+        <span>${islandName}</span>
+      </div>
+      <span class="chevron">▼</span>
+    </div>
+    <div id="list-${islandId}" class="area-list" style="display: none;">${areaItems}</div>`;
+  container.appendChild(group);
+}
+
+window.toggleSidebar = function() {
+  document.getElementById('map-sidebar').classList.toggle('collapsed');
+};
 
 window.toggleIsland = (id) => {
   const list = document.getElementById(`list-${id}`);
@@ -106,19 +133,6 @@ window.toggleIsland = (id) => {
   } else {
     list.style.display = "none";
     header.classList.remove('expanded');
-  }
-};
-
-window.toggleSidebar = function() {
-  document.getElementById('map-sidebar').classList.toggle('collapsed');
-};
-
-window.toggleIsland = (id) => {
-  const list = document.getElementById(`list-${id}`);
-  const header = document.getElementById(`header-${id}`);
-  if (list) {
-    list.classList.toggle('active');
-    header.classList.toggle('expanded');
   }
 };
 
@@ -144,11 +158,9 @@ window.zoomToArea = (islandName, areaName) => {
 
 window.filterSidebar = () => {
   const term = document.getElementById('area-search').value.toLowerCase();
-  
   document.querySelectorAll('.island-group').forEach(group => {
     let hasMatch = false;
     const items = group.querySelectorAll('.area-item');
-    
     items.forEach(item => {
       if (item.innerText.toLowerCase().includes(term)) {
         item.style.display = 'block';
@@ -157,24 +169,21 @@ window.filterSidebar = () => {
         item.style.display = 'none';
       }
     });
-
     const list = group.querySelector('.area-list');
     const header = group.querySelector('.island-header');
-    
     if (term !== "" && hasMatch) {
-      list.classList.add('active');
+      list.style.display = "block";
       header.classList.add('expanded');
       group.style.display = 'block';
     } else if (term !== "" && !hasMatch) {
       group.style.display = 'none';
     } else {
       group.style.display = 'block';
-      list.classList.remove('active');
+      list.style.display = "none";
       header.classList.remove('expanded');
     }
   });
 };
-
 // ===============================
 // 6) POPUP GENERATION
 // ===============================
