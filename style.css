@@ -133,9 +133,7 @@
 }
 
 /* Arrow rotation when expanded */
-.island-header.expanded .chevron {
-    transform: rotate(180deg);
-}
+.island-header.expanded .chevron { transform: rotate(180deg); }
 
 /* Area Items (Sub-menu) */
 .area-list {
@@ -173,14 +171,16 @@
 .leaflet-popup-docked {
     position: absolute !important;
     top: 20px !important;
-    left: 340px !important; /* Sidebar width (320px) + 20px gap */
+    left: 20px !important; /* Position relative to its container, the map */
+    margin-left: 320px;    /* Offset by sidebar width */
     transform: none !important;
     bottom: auto !important;
+    z-index: 1000;
 }
 
-/* Remove the popup tip/arrow since it's no longer pointing at a spot */
-.leaflet-popup-docked .leaflet-popup-tip-container {
-    display: none;
+/* When sidebar is collapsed, move the popup left */
+.map-sidebar.collapsed + #map .leaflet-popup-docked {
+    margin-left: 45px;
 }
 
 /* Polygon Flash Animation */
