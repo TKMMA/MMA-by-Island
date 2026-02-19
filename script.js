@@ -332,17 +332,81 @@ function openMultiPopup(latlng, features) {
   }).join("");
 
   const headerTitle = features.length === 1 ? "1 Area Selected" : `${features.length} Areas Selected`;
- // Create or update the docked popup
-  L.popup({ 
-    maxWidth: 360, 
-    minWidth: 360, 
-    className: 'leaflet-popup-docked', // Use our new CSS class
+
+  // Create or update the docked popup
+  L.popup({
+    maxWidth: 360,
+    minWidth: 360,
+    className: 'leaflet-popup-docked',
     autoPan: false,
-    closeOnClick: false 
+    closeOnClick: false
   })
-    .setLatLng(map.getBounds().getNorthWest()) // Anchor to top-left of viewport
+    .setLatLng(map.getBounds().getNorthWest())
     .setContent(`${style}<div class="mmpopup"><div class="mmpopup__header"><div class="mmpopup__header-title">${headerTitle}</div></div><div class="mmpopup__scroll">${summaryCardHtml}${sectionDividerHtml}${individualCardsHtml}</div></div>`)
     .openOn(map);
+}
+
+// ===============================
+// 7) LOAD LAYERS
+// ===============================
+async function loadIslandLayer(config) {
+  const layerUrl = `${config.baseUrl}/${config.layerId}`;
+  try {
+    const metadataResp = await fetch(`${layerUrl}?f=json`);
+    const metadata = await metadataResp.json();
+    const renderer = metadata?.drawingInfo?.renderer;
+    const globalOpacity = (100 - (metadata?.drawingInfo?.transparency || 0)) / 100;
+
+    const dataResp = await fetch(`${layerUrl}/query?where=1=1&outFields=*&f=geojson&returnGeometry=true`);
+    const geojsonData = await dataResp.json();
+
+    const geoLayer = L.geoJSON(geojsonData, {
+      style: function (feature) {
+        const fName = (getVal(feature.properties, "Full_Name") || getVal(feature.properties, "Full_name") || "").toLowerCase();
+        const match = renderer?.uniqueValueInfos?.find((info) => String(info.value || "").toLowerCase() === fName);
+        if (match) {
+          const c = match.symbol.color;
+          return { fillColor: `rgba(${c[0]},${c[1]},${c[2]},${c[3] / 255})`, fillOpacity: globalOpacity, color: `rgb(${match.symbol.outline.color[0]},${match.symbol.outline.color[1]},${match.symbol.outline.color[2]})`, weight: 1.5 };
+        }
+        return { weight: 1.2, fillOpacity: 0.3, color: "#005a87" };
+      },
+      onEachFeature: function (feature, layer) {
+        layer.on("click", function (e) {
+          L.DomEvent.stopPropagation(e);
+
+          // 1. Center map and drop a temporary pin
+          map.setView(e.latlng, map.getZoom());
+          if (window.currentPin) map.removeLayer(window.currentPin);
+          window.currentPin = L.marker(e.latlng).addTo(map);
+
+          // 2. Clear old flashes
+          document.querySelectorAll('.leaflet-interactive').forEach(el => el.classList.remove('selected-polygon-flash'));
+
+          const hits = [];
+          Object.values(allIslandLayers).forEach(islandLayerGroup => {
+            if (map.hasLayer(islandLayerGroup)) {
+              islandLayerGroup.eachLayer(l => {
+                if (l instanceof L.Polygon && latlngInPolygon(e.latlng, l, map)) {
+                  hits.push(l.feature);
+                  // 3. Add the flash class to the SVG element
+                  if (l._path) l._path.classList.add('selected-polygon-flash');
+                }
+              });
+            }
+          });
+
+          if (hits.length) openMultiPopup(e.latlng, hits);
+        });
+      }
+    }).addTo(map);
+
+    allIslandLayers[config.name] = geoLayer;
+    populateSidebar(config.name, geojsonData.features);
+
+  } catch (e) { console.error(e); }
+}
+
+islandConfigs.forEach((cfg) => loadIslandLayer(cfg));
 
 // ===============================
 // 7) LOAD LAYERS
