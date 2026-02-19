@@ -4,7 +4,7 @@
 const allIslandLayers = {};
 
 // ===============================
-// 1) TAB SWITCHING (For Sidebar)
+// 1) TAB SWITCHING (For Detail Panel)
 // ===============================
 window.showTab = function (btn, tabId) {
   const section = btn.closest(".area-section");
@@ -90,13 +90,14 @@ function populateSidebar(islandName, features) {
     return `<div class="area-item" onclick="zoomToArea('${islandName}', '${name}')">${name}</div>`;
   }).sort().join('');
 
+  // Entire island-header is now clickable to toggle the accordion
   group.innerHTML = `
-    <div class="island-header" id="header-${islandId}">
+    <div class="island-header" id="header-${islandId}" onclick="toggleIsland('${islandId}')">
       <div class="header-left">
         <input type="checkbox" checked onclick="toggleLayerVisibility(event, '${islandName}')">
-        <span onclick="toggleIsland('${islandId}')">${islandName}</span>
+        <span>${islandName}</span>
       </div>
-      <span class="chevron" onclick="toggleIsland('${islandId}')">▼</span>
+      <span class="chevron">▼</span>
     </div>
     <div id="list-${islandId}" class="area-list">${areaItems}</div>`;
   container.appendChild(group);
@@ -114,6 +115,7 @@ window.toggleIsland = (id) => {
 };
 
 window.toggleLayerVisibility = (event, islandName) => {
+  // Prevent the island-header's click event from firing when clicking the checkbox
   event.stopPropagation();
   const layer = allIslandLayers[islandName];
   if (event.target.checked) map.addLayer(layer);
@@ -162,13 +164,13 @@ window.filterSidebar = () => {
 };
 
 // ===============================
-// 6) GOOGLE MAPS STYLE INFO PANEL
+// 6) DETAIL PANEL ENGINE
 // ===============================
 function openInfoPanel(latlng, features) {
   let summaryCardHtml = "";
   let sectionDividerHtml = "";
 
-  // A) BUILD SUMMARY BLOCK
+  // BUILD SUMMARY (If overlapping areas)
   if (features.length > 1) {
     const areaNamesHtml = features.map(f => `
       <div class="mm-bullet-container">
@@ -212,7 +214,7 @@ function openInfoPanel(latlng, features) {
     sectionDividerHtml = `<div class="section-divider">Detailed Area Information Below</div>`;
   }
 
-  // B) BUILD INDIVIDUAL CARDS
+  // BUILD INDIVIDUAL CARDS
   const individualCardsHtml = features.map((feature, index) => {
     const props = feature.properties;
     const uid = `area-${index}`;
@@ -265,7 +267,6 @@ function openInfoPanel(latlng, features) {
 
   const headerTitle = features.length === 1 ? "1 Area Selected" : `${features.length} Areas Selected`;
 
-  // C) INJECT INTO SIDE PANEL
   const content = document.getElementById('info-content');
   content.innerHTML = `
     <div class="mmpopup">
