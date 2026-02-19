@@ -119,9 +119,25 @@
   transition: background 0.2s;
 }
 
+.island-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 15px;
+    background: #fcfcfc;
+    cursor: pointer;
+    transition: all 0.2s ease; /* Smoother color transition */
+    user-select: none; /* Prevents text from being highlighted on double-clicks */
+}
+
 .island-header:hover {
     background: #f0f7fb;
-    color: #005a87; /* Subtle color shift when hovering the whole box */
+    color: #005a87;
+}
+
+.island-header:active {
+    background: #e1eef5; /* Adds a "pressed" look when clicked */
+}
 }
 
 .header-left {
