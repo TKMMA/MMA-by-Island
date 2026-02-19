@@ -168,3 +168,28 @@
 .map-sidebar.collapsed .island-list {
     display: none;
 }
+
+/* Docked Popup Styling */
+.leaflet-popup-docked {
+    position: absolute !important;
+    top: 20px !important;
+    left: 340px !important; /* Sidebar width (320px) + 20px gap */
+    transform: none !important;
+    bottom: auto !important;
+}
+
+/* Remove the popup tip/arrow since it's no longer pointing at a spot */
+.leaflet-popup-docked .leaflet-popup-tip-container {
+    display: none;
+}
+
+/* Polygon Flash Animation */
+@keyframes polygon-flash {
+    0% { stroke-width: 2; stroke: #3388ff; }
+    50% { stroke-width: 8; stroke: #ffcc00; }
+    100% { stroke-width: 2; stroke: #3388ff; }
+}
+
+.selected-polygon-flash {
+    animation: polygon-flash 1s ease-in-out infinite;
+}
