@@ -1,5 +1,5 @@
 /**
- * Hawaii Regulated Areas Map - Unified Script
+ * Hawaii Regulated Areas Map - Unified & Refined
  */
 
 const CONFIG = {
@@ -22,31 +22,34 @@ let islandLayers = {};
 // --- Initialization ---
 
 function initMap() {
+    // Initialize Leaflet map
     map = L.map('map').setView(CONFIG.MAP_CENTER, CONFIG.DEFAULT_ZOOM);
 
+    // Add base tiles
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
         attribution: '© OpenStreetMap contributors'
     }).addTo(map);
 
+    // Fetch and process data
     loadAllIslandData();
 }
 
-// --- Data Fetching & Rendering ---
+// --- Data & Styling Logic ---
 
 async function loadAllIslandData() {
     const islandListContainer = document.getElementById('island-list');
     if (!islandListContainer) return;
     
-    islandListContainer.innerHTML = '<div class="loading">Loading Map Data...</div>';
+    islandListContainer.innerHTML = '<div class="loading" style="padding:20px;">Loading Marine Areas...</div>';
 
     for (const [islandName, baseUrl] of Object.entries(CONFIG.ISLANDS)) {
         try {
-            // 1. Fetch Metadata for Drawing Info
+            // 1. Get Metadata for Colors/DrawingInfo
             const metaRes = await fetch(`${baseUrl}?f=pjson`);
             const metadata = await metaRes.json();
             const arcgisStyle = metadata.drawingInfo?.renderer?.symbol || metadata.drawingInfo?.renderer?.defaultSymbol;
 
-            // 2. Fetch Features with WGS84 coordinates
+            // 2. Get Geometry and Attributes (WGS84)
             const dataRes = await fetch(`${baseUrl}/query?where=1=1&outFields=*&outSR=4326&f=pjson`);
             const data = await dataRes.json();
 
@@ -56,12 +59,13 @@ async function loadAllIslandData() {
                 renderIslandToSidebar(islandName, data.features, style);
             }
         } catch (err) {
-            console.error(`Error loading ${islandName}:`, err);
+            console.error(`Error loading data for ${islandName}:`, err);
         }
     }
     
-    const loadingMsg = islandListContainer.querySelector('.loading');
-    if (loadingMsg) loadingMsg.remove();
+    // Remove loading indicator once done
+    const loading = islandListContainer.querySelector('.loading');
+    if (loading) loading.remove();
 }
 
 function parseArcGISColor(rgba) {
@@ -78,23 +82,23 @@ function createMapLayer(islandName, features, style) {
     features.forEach(f => {
         if (!f.geometry?.rings) return;
         
-        // Convert [lng, lat] to [lat, lng]
-        const latLngs = f.geometry.rings.map(ring => 
-            ring.map(coord => [coord[1], coord[0]])
+        // Flip [lng, lat] to [lat, lng] for Leaflet
+        const coords = f.geometry.rings.map(ring => 
+            ring.map(pair => [pair[1], pair[0]])
         );
 
-        const polygon = L.polygon(latLngs, {
+        const polygon = L.polygon(coords, {
             color: style.color,
             fillColor: style.color,
             fillOpacity: style.opacity,
             weight: 2
         });
 
-        const name = f.attributes.MMA_Name || f.attributes.Name || "Unnamed Area";
+        const name = f.attributes.MMA_Name || f.attributes.Name || "Regulated Area";
         polygon.bindPopup(`<b>${name}</b>`);
         layerGroup.addLayer(polygon);
         
-        // Link reference for sidebar zooming
+        // Save reference for sidebar interactions
         f._leafletLayer = polygon;
     });
 
@@ -105,8 +109,8 @@ function renderIslandToSidebar(islandName, features, style) {
     const container = document.createElement('div');
     container.className = 'island-group';
     
-    const areaLinks = features.map(f => {
-        const name = f.attributes.MMA_Name || f.attributes.Name || "Unnamed Area";
+    const items = features.map(f => {
+        const name = f.attributes.MMA_Name || f.attributes.Name || "Regulated Area";
         return `<div class="area-item" onclick="zoomToFeature('${islandName}', '${name}')">
                     <span class="color-dot" style="background:${style.color}"></span> ${name}
                 </div>`;
@@ -120,12 +124,12 @@ function renderIslandToSidebar(islandName, features, style) {
             </div>
             <span class="chevron">▼</span>
         </div>
-        <div class="area-list" style="display:none;">${areaLinks}</div>
+        <div class="area-list" style="display:none;">${items}</div>
     `;
     document.getElementById('island-list').appendChild(container);
 }
 
-// --- UI Interaction Logic ---
+// --- UI & Sidebar Logic ---
 
 window.toggleSidebar = function() {
     const sidebar = document.getElementById('map-sidebar');
@@ -133,7 +137,6 @@ window.toggleSidebar = function() {
     const isCollapsed = sidebar.classList.toggle('collapsed');
     
     btn.innerHTML = isCollapsed ? '▶' : '◀';
-    // Move button so it stays visible when pane is gone
     btn.style.left = isCollapsed ? '12px' : ''; 
     
     setTimeout(() => map.invalidateSize(), 400);
@@ -145,6 +148,7 @@ window.toggleInfoSidebar = function() {
     const isActive = infoSidebar.classList.toggle('active');
     
     btn.innerHTML = isActive ? '▶' : '◀';
+    btn.style.right = isActive ? '' : '12px';
     
     setTimeout(() => map.invalidateSize(), 400);
 };
@@ -172,7 +176,7 @@ window.zoomToFeature = function(islandName, areaName) {
     if (feature && feature._leafletLayer) {
         const layer = feature._leafletLayer;
         
-        // Ensure layer is on map
+        // Auto-show layer if it's hidden
         if (!map.hasLayer(layer)) {
             islandLayers[islandName].group.addTo(map);
             const checkbox = document.querySelector(`input[onchange*='${islandName}']`);
@@ -181,17 +185,18 @@ window.zoomToFeature = function(islandName, areaName) {
 
         map.fitBounds(layer.getBounds());
         
-        // Update Info Sidebar
+        // Update Info Pane Content
         document.getElementById('info-title').innerText = areaName;
         document.getElementById('info-body').innerHTML = `
-            <div class="info-card">
-                <h3>Regulations</h3>
-                <p>${feature.attributes.Reg_Summary || 'Details for this area coming soon.'}</p>
-                <hr>
-                <small>Island: ${islandName}</small>
+            <div class="info-card" style="padding:10px; background:#f9f9f9; border-radius:8px;">
+                <h3 style="color:#005a87; margin-top:0;">Regulations</h3>
+                <p>${feature.attributes.Reg_Summary || 'Summaries for this area are being compiled.'}</p>
+                <hr style="border:0; border-top:1px solid #ddd; margin:15px 0;">
+                <p style="font-size:0.85em; color:#666;">Island: ${islandName}</p>
             </div>
         `;
         
+        // Open the info pane if it's closed
         if (!document.getElementById('info-sidebar').classList.contains('active')) {
             toggleInfoSidebar();
         }
@@ -209,4 +214,5 @@ window.filterSidebar = function() {
     });
 };
 
+// Fire up the map
 document.addEventListener('DOMContentLoaded', initMap);
