@@ -176,32 +176,57 @@
 }
 
 /* ===============================
-   5) DOCKED POPUP STYLING
+   5) SECONDARY INFORMATION SIDEBAR
    =============================== */
-.leaflet-popup-docked {
-    position: absolute !important;
-    top: 75px !important; /* Slightly lower than sidebar top */
-    left: 10px !important; 
-    margin-left: 320px;    /* Sits right next to the 320px sidebar */
-    transform: none !important;
-    bottom: auto !important;
-    z-index: 9; /* Lower than sidebar (10) so it looks like it slides from underneath */
-    transition: margin-left 0.3s ease;
+.info-sidebar {
+    width: 0; /* Hidden by default */
+    background: #ffffff;
+    border-left: 1px solid #ddd;
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    transition: width 0.3s ease;
+    z-index: 10;
+    overflow: hidden;
+    position: relative;
+    box-shadow: -2px 0 5px rgba(0,0,0,0.05);
 }
 
-/* Adjust position when sidebar is collapsed */
-.map-sidebar.collapsed + #map .leaflet-popup-docked {
-    margin-left: 55px; /* 45px collapsed sidebar + 10px gap */
+/* When active, match the width of the primary sidebar */
+.info-sidebar.active {
+    width: 320px;
 }
 
-.leaflet-popup-docked .leaflet-popup-content-wrapper {
-    background: white;
-    padding: 0;
-    border: 1px solid #ddd;
+.info-sidebar-header {
+    padding: 15px;
+    background: #f6f6f6;
+    border-bottom: 1px solid #e6e6e6;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
 }
 
-.leaflet-popup-docked .leaflet-popup-tip-container {
-    display: none;
+.info-sidebar-header h3 {
+    margin: 0;
+    font-size: 14px;
+    color: #005a87;
+    text-transform: uppercase;
+    font-weight: 800;
+}
+
+.close-info-btn {
+    background: none;
+    border: none;
+    font-size: 20px;
+    cursor: pointer;
+    color: #999;
+}
+
+.info-content-scroll {
+    flex: 1;
+    overflow-y: auto;
+    padding: 15px;
+    scrollbar-width: thin;
 }
 
 /* ===============================
