@@ -1,36 +1,30 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Hawaiʻi Regulated Areas Map</title>
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    <link rel="stylesheet" href="style.css">
-</head>
-<body>
-    <div class="map-interface">
-        <aside id="map-sidebar" class="map-sidebar">
+<div class="map-interface">
+    <aside id="map-sidebar" class="map-sidebar">
+        <button onclick="toggleSidebar()" class="pane-toggle-btn left-toggle" title="Toggle Areas">◀</button>
+        
+        <div class="sidebar-content">
             <div class="sidebar-header">
-                <div class="header-top">
-                    <h2>Regulated Areas</h2>
-                    <button onclick="toggleSidebar()" class="sidebar-toggle-btn" title="Toggle Sidebar">◀</button>
-                </div>
+                <h2>Regulated Areas</h2>
                 <div class="search-box">
                     <input type="text" id="area-search" placeholder="Search areas..." onkeyup="filterSidebar()">
-                    <span class="search-icon">🔍</span>
                 </div>
             </div>
-            <div id="island-list" class="island-list">
-                <div class="loading-status">Loading island data...</div>
+            <div id="island-list" class="island-list"></div>
+        </div>
+    </aside>
+
+    <aside id="info-sidebar" class="info-sidebar">
+        <button onclick="toggleInfoSidebar()" class="pane-toggle-btn right-toggle" title="Toggle Info">▶</button>
+        
+        <div class="sidebar-content">
+            <div class="sidebar-header">
+                <h2 id="info-title">Area Details</h2>
             </div>
-        </aside>
+            <div id="info-body" class="info-body">
+                <p class="placeholder-text">Select an area to view regulations.</p>
+            </div>
+        </div>
+    </aside>
 
-        <aside id="info-sidebar" class="info-sidebar"></aside>
-
-        <main id="map"></main>
-    </div>
-
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-    <script src="script.js"></script>
-</body>
-</html>
+    <main id="map"></main>
+</div>
