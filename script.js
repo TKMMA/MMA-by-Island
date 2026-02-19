@@ -206,16 +206,12 @@ window.filterSidebar = () => {
 };
 
 // ===============================
-// 6) POPUP GENERATION
-// ===============================
-// ===============================
 // 6) INFORMATION SIDEBAR GENERATION
 // ===============================
 function openInfoSidebar(features) {
   const container = document.getElementById('info-sidebar');
   if (!container) return;
 
-  // Helper inside for formatting
   const formatBulletsWithIndents = (text) => {
     if (!text || text === "N/A") return "N/A";
     const lines = String(text).split(/\r?\n/).map(l => l.trim()).filter(Boolean);
@@ -257,7 +253,6 @@ function openInfoSidebar(features) {
     </div>`;
   }).join("");
 
-  // Inject content and show sidebar
   container.innerHTML = `
     <div class="info-sidebar-header">
         <h3>${features.length} Areas Selected</h3>
@@ -270,13 +265,6 @@ function openInfoSidebar(features) {
   `;
   container.classList.add('active');
 }
-
-window.closeInfoSidebar = function() {
-    const container = document.getElementById('info-sidebar');
-    container.classList.remove('active');
-    if (window.currentPin) map.removeLayer(window.currentPin);
-    document.querySelectorAll('.leaflet-interactive').forEach(el => el.classList.remove('selected-polygon-flash'));
-};
 
 // ===============================
 // 7) LOAD LAYERS
@@ -318,7 +306,7 @@ async function loadIslandLayer(config) {
               }
             });
           });
-          if (hits.length) openMultiPopup(e.latlng, hits);
+          if (hits.length) openInfoSidebar(hits);
         });
       }
     }).addTo(map);
