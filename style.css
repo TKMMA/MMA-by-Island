@@ -120,7 +120,8 @@
 }
 
 .island-header:hover {
-  background: #f0f7fb;
+    background: #f0f7fb;
+    color: #005a87; /* Subtle color shift when hovering the whole box */
 }
 
 .header-left {
