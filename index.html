@@ -3,12 +3,28 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Hawaii MMA Map</title>
+  <title>Hawaii Regulated Areas</title>
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <div id="map" style="height: 100vh; width: 100%;"></div>
+
+  <div class="map-interface">
+    <div id="map-sidebar" class="map-sidebar">
+      <div class="sidebar-header">
+        <div class="header-top">
+          <h2>Regulated Areas</h2>
+          <button onclick="toggleSidebar()" class="sidebar-toggle-btn" title="Toggle Sidebar">◀</button>
+        </div>
+        <div class="search-box">
+          <input type="text" id="area-search" placeholder="Search areas..." onkeyup="filterSidebar()">
+          <span class="search-icon">🔍</span>
+        </div>
+      </div>
+      <div id="island-list" class="island-list"></div>
+    </div>
+    <div id="map"></div>
+  </div>
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script src="script.js"></script>
 </body>
