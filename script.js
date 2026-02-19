@@ -81,6 +81,11 @@ const islandConfigs = [
 function populateSidebar(islandName, features) {
   const container = document.getElementById('island-list');
   if (!container) return;
+  
+  // Remove the loading notice if it exists
+  const notice = document.getElementById('loading-notice');
+  if (notice) notice.remove();
+
   const islandId = islandName.replace(/\s+/g, '');
   const group = document.createElement('div');
   group.className = 'island-group';
@@ -90,7 +95,6 @@ function populateSidebar(islandName, features) {
     return `<div class="area-item" onclick="zoomToArea('${islandName}', '${name}')">${name}</div>`;
   }).sort().join('');
 
-  // Entire island-header is now clickable to toggle the accordion
   group.innerHTML = `
     <div class="island-header" id="header-${islandId}" onclick="toggleIsland('${islandId}')">
       <div class="header-left">
@@ -115,7 +119,6 @@ window.toggleIsland = (id) => {
 };
 
 window.toggleLayerVisibility = (event, islandName) => {
-  // Prevent the island-header's click event from firing when clicking the checkbox
   event.stopPropagation();
   const layer = allIslandLayers[islandName];
   if (event.target.checked) map.addLayer(layer);
@@ -170,7 +173,6 @@ function openInfoPanel(latlng, features) {
   let summaryCardHtml = "";
   let sectionDividerHtml = "";
 
-  // BUILD SUMMARY (If overlapping areas)
   if (features.length > 1) {
     const areaNamesHtml = features.map(f => `
       <div class="mm-bullet-container">
@@ -214,7 +216,6 @@ function openInfoPanel(latlng, features) {
     sectionDividerHtml = `<div class="section-divider">Detailed Area Information Below</div>`;
   }
 
-  // BUILD INDIVIDUAL CARDS
   const individualCardsHtml = features.map((feature, index) => {
     const props = feature.properties;
     const uid = `area-${index}`;
@@ -271,7 +272,7 @@ function openInfoPanel(latlng, features) {
   content.innerHTML = `
     <div class="mmpopup">
       <div class="mmpopup__header"><div class="mmpopup__header-title">${headerTitle}</div></div>
-      <div class="mmpopup__scroll">
+      <div class="mmpopup__scroll" style="padding: 15px;">
         ${summaryCardHtml}
         ${sectionDividerHtml}
         ${individualCardsHtml}
