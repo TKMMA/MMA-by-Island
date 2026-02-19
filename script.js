@@ -377,7 +377,7 @@ async function loadIslandLayer(config) {
           if (window.currentPin) map.removeLayer(window.currentPin);
           window.currentPin = L.marker(e.latlng).addTo(map);
 
-          // 2. Clear old flashes and find all intersecting polygons
+          // 2. Clear old flashes
           document.querySelectorAll('.leaflet-interactive').forEach(el => el.classList.remove('selected-polygon-flash'));
           
           const hits = [];
@@ -395,5 +395,13 @@ async function loadIslandLayer(config) {
           
           if (hits.length) openMultiPopup(e.latlng, hits);
         });
-      }
+      } // Added missing bracket
+    }).addTo(map); // Added missing bracket
+
+    allIslandLayers[config.name] = geoLayer;
+    populateSidebar(config.name, geojsonData.features);
+
+  } catch (e) { console.error(e); }
+}
+
 islandConfigs.forEach((cfg) => loadIslandLayer(cfg));
