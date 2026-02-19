@@ -1,80 +1,103 @@
-/* Layout & Base */
-html, body {
-    margin: 0; padding: 0; height: 100%; width: 100%; overflow: hidden;
-    font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+/**
+ * Hawaii Regulated Areas Map - Core Logic
+ */
+
+const CONFIG = {
+    MAP_CENTER: [20.4, -157.4],
+    DEFAULT_ZOOM: 7,
+    // Map islands to their specific ArcGIS Query URLs
+    ISLANDS: {
+        "Oʻahu": "https://services.arcgis.com/HQ0xoN0EzDPBOEci/arcgis/rest/services/TKMMAFEATURECLASS_OAHU/FeatureServer/736/query?where=1=1&outFields=*&f=pjson&returnGeometry=true",
+        "Molokaʻi": "https://services.arcgis.com/HQ0xoN0EzDPBOEci/ArcGIS/rest/services/TKMMAFEATURECLASS_MOLOKAI/FeatureServer/735/query?where=1=1&outFields=*&f=pjson&returnGeometry=true",
+        "Maui": "https://services.arcgis.com/HQ0xoN0EzDPBOEci/ArcGIS/rest/services/TKMMAFEATURECLASS_MAUI/FeatureServer/734/query?where=1=1&outFields=*&f=pjson&returnGeometry=true",
+        "Lānaʻi": "https://services.arcgis.com/HQ0xoN0EzDPBOEci/ArcGIS/rest/services/TKMMAFEATURECLASS_LANAI/FeatureServer/733/query?where=1=1&outFields=*&f=pjson&returnGeometry=true",
+        "Kauaʻi": "https://services.arcgis.com/HQ0xoN0EzDPBOEci/ArcGIS/rest/services/TKMMAFEATURECLASS_KAUAI/FeatureServer/732/query?where=1=1&outFields=*&f=pjson&returnGeometry=true",
+        "Hawaiʻi Island": "https://services.arcgis.com/HQ0xoN0EzDPBOEci/ArcGIS/rest/services/TKMMAFEATURECLASS_HAWAII_ISLAND/FeatureServer/730/query?where=1=1&outFields=*&f=pjson&returnGeometry=true",
+        "Kahoʻolawe": "https://services.arcgis.com/HQ0xoN0EzDPBOEci/ArcGIS/rest/services/TKMMAFEATURECLASS_KAHAOLAWE/FeatureServer/731/query?where=1=1&outFields=*&f=pjson&returnGeometry=true"
+    }
+};
+
+let map;
+let islandLayers = {}; // Store L.geoJSON layers for toggling
+
+function initMap() {
+    map = L.map('map').setView(CONFIG.MAP_CENTER, CONFIG.DEFAULT_ZOOM);
+
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '© OpenStreetMap contributors'
+    }).addTo(map);
+
+    loadAllIslandData();
 }
 
-.map-interface {
-    display: flex;
-    width: 100vw;
-    height: 100vh;
+/**
+ * Fetches data for all islands and builds the sidebar
+ */
+async function loadAllIslandData() {
+    const islandListContainer = document.getElementById('island-list');
+    islandListContainer.innerHTML = ''; // Clear loading message
+
+    for (const [islandName, url] of Object.entries(CONFIG.ISLANDS)) {
+        try {
+            const response = await fetch(url);
+            const data = await response.json();
+            
+            // ArcGIS JSON to GeoJSON conversion is handled better if we use Esri Leaflet, 
+            // but for raw JSON we process the 'features' array.
+            if (data.features) {
+                renderIslandToSidebar(islandName, data.features);
+            }
+        } catch (err) {
+            console.error(`Failed to load ${islandName}:`, err);
+        }
+    }
 }
 
-#map {
-    flex: 1;
-    height: 100%;
-    z-index: 1;
+function renderIslandToSidebar(islandName, features) {
+    const container = document.createElement('div');
+    container.className = 'island-group';
+    
+    // Extract names for the list - adjust 'MMA_Name' based on your actual field name
+    const areaLinks = features.map(f => {
+        const name = f.attributes.MMA_Name || f.attributes.Name || "Unnamed Area";
+        return `<div class="area-item" onclick="zoomToFeature('${islandName}', '${name}')">${name}</div>`;
+    }).join('');
+
+    container.innerHTML = `
+        <div class="island-header" onclick="toggleAccordion(this)">
+            <div class="header-left">
+                <input type="checkbox" onclick="toggleIslandLayer(event, '${islandName}')">
+                <span>${islandName}</span>
+            </div>
+            <span class="chevron">▼</span>
+        </div>
+        <div class="area-list" style="display:none;">
+            ${areaLinks}
+        </div>
+    `;
+    document.getElementById('island-list').appendChild(container);
 }
 
-/* Sidebar Styles */
-.map-sidebar {
-    width: 320px;
-    background: #fff;
-    border-right: 1px solid #ddd;
-    display: flex;
-    flex-direction: column;
-    transition: width 0.3s ease;
-    z-index: 10;
-    box-shadow: 2px 0 5px rgba(0,0,0,0.1);
-}
+// Global UI Logic
+window.toggleSidebar = function() {
+    document.getElementById('map-sidebar').classList.toggle('collapsed');
+    setTimeout(() => map.invalidateSize(), 300);
+};
 
-.map-sidebar.collapsed {
-    width: 45px;
-}
+window.toggleAccordion = function(header) {
+    const list = header.nextElementSibling;
+    const isExpanded = list.style.display === 'block';
+    list.style.display = isExpanded ? 'none' : 'block';
+    header.classList.toggle('expanded', !isExpanded);
+};
 
-.map-sidebar.collapsed .header-top h2,
-.map-sidebar.collapsed .search-box,
-.map-sidebar.collapsed .island-list {
-    display: none;
-}
+window.filterSidebar = function() {
+    const query = document.getElementById('area-search').value.toLowerCase();
+    document.querySelectorAll('.area-item').forEach(item => {
+        const match = item.textContent.toLowerCase().includes(query);
+        item.style.display = match ? 'block' : 'none';
+        if (match) item.closest('.island-group').style.display = 'block';
+    });
+};
 
-/* Header & Search */
-.sidebar-header { padding: 20px 15px; background: #005a87; color: white; }
-.header-top { display: flex; justify-content: space-between; align-items: center; }
-.search-box { position: relative; margin-top: 15px; }
-
-#area-search {
-    width: 100%;
-    padding: 10px 15px;
-    border-radius: 20px;
-    border: none;
-    outline: none;
-}
-
-/* Accordion & List Items */
-.island-list { flex: 1; overflow-y: auto; }
-.island-group { border-bottom: 1px solid #eee; }
-.island-header {
-    display: flex; justify-content: space-between; align-items: center;
-    padding: 12px 15px; cursor: pointer; background: #fcfcfc;
-}
-
-.area-item {
-    padding: 10px 15px 10px 45px;
-    font-size: 13px;
-    cursor: pointer;
-    border-bottom: 1px solid #fafafa;
-}
-
-.area-item:hover { background: #f0f7fb; color: #005a87; }
-
-/* Info Sidebar */
-.info-sidebar {
-    width: 0;
-    background: #fcfcfc;
-    transition: width 0.3s ease;
-    overflow: hidden;
-    z-index: 5;
-}
-
-.info-sidebar.active { width: 320px; border-right: 1px solid #ddd; }
+document.addEventListener('DOMContentLoaded', initMap);
