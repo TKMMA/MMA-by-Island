@@ -2,7 +2,7 @@
 .map-interface {
     display: flex;
     width: 100%;
-    height: 800px; /* Adjust height as needed */
+    height: 800px; /* Adjust as needed for your layout */
     position: relative;
     font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
     border: 1px solid #ddd;
@@ -27,23 +27,7 @@
     box-shadow: 2px 0 5px rgba(0,0,0,0.1);
 }
 
-/* Collapsed Sidebar State */
-.map-sidebar.collapsed {
-    width: 45px;
-}
-
-.map-sidebar.collapsed .header-top h2, 
-.map-sidebar.collapsed .search-box, 
-.map-sidebar.collapsed .island-list {
-    display: none;
-}
-
-.map-sidebar.collapsed .sidebar-toggle-btn {
-    transform: rotate(180deg);
-    margin: 0 auto;
-}
-
-/* Sidebar Header */
+/* Sidebar Header & Search */
 .sidebar-header {
     padding: 20px 15px;
     background: #005a87;
@@ -61,7 +45,6 @@
     margin: 0;
     font-size: 18px;
     font-weight: 700;
-    letter-spacing: 0.5px;
 }
 
 .sidebar-toggle-btn {
@@ -71,14 +54,8 @@
     padding: 5px 8px;
     cursor: pointer;
     border-radius: 4px;
-    transition: background 0.2s;
 }
 
-.sidebar-toggle-btn:hover {
-    background: rgba(255,255,255,0.2);
-}
-
-/* Search Bar */
 .search-box {
     position: relative;
 }
@@ -89,19 +66,7 @@
     border-radius: 20px;
     border: none;
     font-size: 14px;
-    outline: none;
-    color: #333 !important;
-    background-color: #fff;
     box-sizing: border-box;
-}
-
-.search-icon {
-    position: absolute;
-    right: 12px;
-    top: 50%;
-    transform: translateY(-50%);
-    color: #666;
-    pointer-events: none;
 }
 
 /* Island Accordion List */
@@ -114,7 +79,7 @@
     border-bottom: 1px solid #eee;
 }
 
-/* THE BUTTON TWEAK: This makes the whole row clickable */
+/* FULL-WIDTH CLICKABLE HEADER */
 .island-header {
     display: flex;
     justify-content: space-between;
@@ -122,7 +87,7 @@
     padding: 12px 15px;
     background: #fcfcfc;
     cursor: pointer;
-    transition: all 0.2s ease;
+    transition: background 0.2s ease;
     user-select: none;
     width: 100%;
     box-sizing: border-box;
@@ -130,10 +95,6 @@
 
 .island-header:hover {
     background: #f0f7fb;
-}
-
-.island-header:active {
-    background: #e1eef5;
 }
 
 .header-left {
@@ -153,23 +114,18 @@
 .chevron {
     font-size: 10px;
     color: #888;
-    transition: transform 0.3s;
+    transition: transform 0.3s ease;
 }
 
-/* Rotates chevron when the parent has the .expanded class */
+/* Arrow rotation when expanded */
 .island-header.expanded .chevron {
     transform: rotate(180deg);
 }
 
-/* Area Items (The Sub-menu) */
+/* Area Items (Sub-menu) */
 .area-list {
-    display: none;
+    display: none; /* Controlled by JS toggleIsland */
     background: #ffffff;
-}
-
-/* If you want to add smooth transitions, we would use max-height here */
-.area-list.active {
-    display: block;
 }
 
 .area-item {
@@ -178,12 +134,22 @@
     color: #555;
     cursor: pointer;
     border-bottom: 1px solid #fafafa;
-    line-height: 1.4;
-    transition: background 0.2s;
+    transition: all 0.2s;
 }
 
 .area-item:hover {
     background: #f0f7fb;
     color: #005a87;
     font-weight: 600;
+}
+
+/* Collapsed State */
+.map-sidebar.collapsed {
+    width: 45px;
+}
+
+.map-sidebar.collapsed .header-top h2, 
+.map-sidebar.collapsed .search-box, 
+.map-sidebar.collapsed .island-list {
+    display: none;
 }
