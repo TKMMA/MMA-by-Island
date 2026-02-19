@@ -106,16 +106,15 @@ function populateSidebar(islandName, features) {
     return `<div class="area-item" onclick="zoomToArea('${islandName}', '${name}')">${name}</div>`;
   }).sort().join('');
 
- group.innerHTML = `
-  <div class="island-header" id="header-${islandId}" onclick="toggleIsland('${islandId}')">
-    <div class="header-left">
-      <input type="checkbox" checked onclick="toggleLayerVisibility(event, '${islandName}')">
-      <span>${islandName}</span>
-    </div>
-    <span class="chevron">▼</span>
-  </div>
-  <div id="list-${islandId}" class="area-list">${areaItems}</div>`;
-}
+group.innerHTML = `
+      <div class="island-header" id="header-${islandId}" onclick="toggleIsland('${islandId}')">
+        <div class="header-left">
+          <input type="checkbox" checked onclick="toggleLayerVisibility(event, '${islandName}')">
+          <span>${islandName}</span>
+        </div>
+        <span class="chevron">▼</span>
+      </div>
+      <div id="list-${islandId}" class="area-list">${areaItems}</div>`;
 
 window.toggleSidebar = function() {
   document.getElementById('map-sidebar').classList.toggle('collapsed');
