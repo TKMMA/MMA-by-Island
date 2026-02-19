@@ -2,66 +2,81 @@
     --pane-gap: 12px;
     --pane-radius: 12px;
     --primary-blue: #005a87;
-    --shadow: 0 4px 15px rgba(0,0,0,0.15);
+    --shadow: 0 4px 15px rgba(0,0,0,0.3);
 }
 
-body {
-    margin: 0;
-    padding: 0;
-    background: #e5e5e5; /* The color of the "gaps" */
-    overflow: hidden;
+body, html {
+    margin: 0; padding: 0; height: 100%; width: 100%;
+    font-family: sans-serif; overflow: hidden;
 }
 
 .map-interface {
-    display: flex;
-    padding: var(--pane-gap);
-    gap: var(--pane-gap);
-    height: 100vh;
-    box-sizing: border-box;
-}
-
-/* Map Wrapper */
-.map-container {
-    flex: 1;
     position: relative;
-    border-radius: var(--pane-radius);
-    overflow: hidden;
-    box-shadow: var(--shadow);
+    width: 100%;
+    height: 100%;
+    display: flex;
+    justify-content: space-between; /* Pushes sidebars to edges */
+    padding: var(--pane-gap);
+    box-sizing: border-box;
+    pointer-events: none; /* Allows clicking through to the map */
 }
 
 #map {
-    width: 100%;
-    height: 100%;
+    position: absolute;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    z-index: 1;
 }
 
-/* Sidebar Styling */
+/* Sidebars */
 .map-sidebar, .info-sidebar {
     position: relative;
-    background: white;
+    width: 320px;
     height: 100%;
+    background: white;
     border-radius: var(--pane-radius);
     box-shadow: var(--shadow);
-    transition: width 0.4s ease, opacity 0.3s ease;
     z-index: 10;
+    pointer-events: auto; /* Re-enables clicking for sidebar content */
+    transition: transform 0.4s ease, opacity 0.3s ease;
+    display: flex;
+    flex-direction: column;
 }
 
-.map-sidebar { width: 320px; }
-.map-sidebar.collapsed { width: 0; opacity: 0; overflow: hidden; }
+/* Collapse States */
+.map-sidebar.collapsed { transform: translateX(-340px); opacity: 0; }
+.info-sidebar { opacity: 0; transform: translateX(340px); width: 350px; }
+.info-sidebar.active { opacity: 1; transform: translateX(0); }
 
-.info-sidebar { width: 0; opacity: 0; overflow: hidden; }
-.info-sidebar.active { width: 350px; opacity: 1; }
+/* Sidebar Internal Content */
+.sidebar-content { flex: 1; display: flex; flex-direction: column; overflow: hidden; border-radius: var(--pane-radius); }
+.sidebar-header { padding: 15px; background: var(--primary-blue); color: white; }
+.island-list { flex: 1; overflow-y: auto; padding: 10px; }
+.info-body { padding: 20px; overflow-y: auto; }
 
-/* Toggle Buttons - Fixed positioning to stay visible */
+/* Toggles sit in the gaps */
 .pane-toggle-btn {
     position: absolute;
     top: 20px;
-    z-index: 100;
+    width: 30px;
+    height: 50px;
     background: white;
     border: 1px solid #ccc;
-    border-radius: 4px;
-    padding: 10px 5px;
+    border-radius: 6px;
     cursor: pointer;
+    box-shadow: var(--shadow);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    pointer-events: auto;
 }
 
-.left-toggle { right: -15px; } /* Peek out into the gap */
-.right-toggle { left: -15px; }
+.left-toggle { right: -40px; } /* In the gap */
+.right-toggle { left: -40px; } /* In the gap */
+
+/* Color dots from earlier */
+.color-dot {
+    display: inline-block;
+    width: 10px; height: 10px;
+    border-radius: 50%; margin-right: 8px;
+}
