@@ -1,22 +1,28 @@
 /* ===============================
    1) CONTAINER & INTERFACE
    =============================== */
+html, body {
+    margin: 0;
+    padding: 0;
+    height: 100%;
+    width: 100%;
+}
+
 .map-interface {
     display: flex;
-    width: 100%;
-    height: 800px;
+    flex-direction: row; /* Force side-by-side */
+    width: 100vw;
+    height: 100vh;
     position: relative;
     font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
-    border: 1px solid #ddd;
     overflow: hidden;
 }
 
 #map {
-    flex: 1;
+    flex: 1; /* Map takes all remaining space */
     height: 100%;
     z-index: 1;
 }
-
 /* ===============================
    2) PRIMARY SIDEBAR (LIST)
    =============================== */
@@ -185,49 +191,15 @@
     flex-direction: column;
     height: 100%;
     transition: width 0.3s ease;
-    z-index: 5; /* Behind main sidebar list */
+    z-index: 5;
     overflow: hidden;
-    position: relative;
-    box-shadow: 2px 0 5px rgba(0,0,0,0.05);
-    flex-shrink: 0;
+    position: relative; /* Sits in line with the list and map */
+    flex-shrink: 0; /* Prevents it from being squashed */
 }
 
 .info-sidebar.active {
     width: 320px;
     min-width: 320px;
-}
-
-.info-sidebar-header {
-    padding: 15px;
-    background: #f0f4f7;
-    border-bottom: 1px solid #e6e6e6;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-}
-
-.info-sidebar-header h3 {
-    margin: 0;
-    font-size: 13px;
-    color: #005a87;
-    text-transform: uppercase;
-    font-weight: 800;
-}
-
-.close-info-btn {
-    background: none;
-    border: none;
-    font-size: 22px;
-    cursor: pointer;
-    color: #005a87;
-    line-height: 1;
-}
-
-.info-content-scroll {
-    flex: 1;
-    overflow-y: auto;
-    padding: 15px;
-    scrollbar-width: thin;
 }
 
 /* ===============================
