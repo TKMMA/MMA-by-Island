@@ -1,4 +1,6 @@
-/* Container Layout */
+/* ===============================
+   1) CONTAINER & INTERFACE
+   =============================== */
 .map-interface {
     display: flex;
     width: 100%;
@@ -15,7 +17,9 @@
     z-index: 1;
 }
 
-/* Sidebar Base Styles */
+/* ===============================
+   2) SIDEBAR BASE STYLES
+   =============================== */
 .map-sidebar {
     width: 320px;
     background: #ffffff;
@@ -24,10 +28,16 @@
     flex-direction: column;
     transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     z-index: 10;
-    box-shadow: 2px 0 5px rgba(0,0,0,0.1);
+    box-shadow: 2px 0 5px rgba(0, 0, 0, 0.1);
 }
 
-/* Sidebar Header & Search */
+.map-sidebar.collapsed {
+    width: 45px;
+}
+
+/* ===============================
+   3) SIDEBAR HEADER & SEARCH
+   =============================== */
 .sidebar-header {
     padding: 20px 15px;
     background: #005a87;
@@ -48,7 +58,7 @@
 }
 
 .sidebar-toggle-btn {
-    background: rgba(255,255,255,0.1);
+    background: rgba(255, 255, 255, 0.1);
     border: none;
     color: white;
     padding: 5px 8px;
@@ -64,13 +74,13 @@
 
 #area-search {
     width: 100%;
-    padding: 10px 40px 10px 15px; /* Added space on right for the icon */
+    padding: 10px 40px 10px 15px;
     border-radius: 20px;
     border: none;
     font-size: 14px;
     box-sizing: border-box;
     outline: none;
-    color: #333 !important; /* Ensures text is visible */
+    color: #333 !important;
 }
 
 .search-icon {
@@ -81,10 +91,12 @@
     color: #666;
     font-size: 16px;
     pointer-events: none;
-    z-index: 10; /* Brings it to the front */
+    z-index: 10;
 }
 
-/* Island Accordion List */
+/* ===============================
+   4) ISLAND ACCORDION (LIST)
+   =============================== */
 .island-list {
     flex: 1;
     overflow-y: auto;
@@ -94,7 +106,6 @@
     border-bottom: 1px solid #eee;
 }
 
-/* FULL-WIDTH CLICKABLE HEADER */
 .island-header {
     display: flex;
     justify-content: space-between;
@@ -132,12 +143,13 @@
     transition: transform 0.3s ease;
 }
 
-/* Arrow rotation when expanded */
-.island-header.expanded .chevron { transform: rotate(180deg); }
+/* Arrow rotation when the island section is expanded */
+.island-header.expanded .chevron {
+    transform: rotate(180deg);
+}
 
-/* Area Items (Sub-menu) */
 .area-list {
-    display: none; /* Controlled by JS toggleIsland */
+    display: none;
     background: #ffffff;
 }
 
@@ -156,34 +168,39 @@
     font-weight: 600;
 }
 
-/* Collapsed State */
-.map-sidebar.collapsed {
-    width: 45px;
-}
-
-.map-sidebar.collapsed .header-top h2, 
-.map-sidebar.collapsed .search-box, 
+/* Hide content when sidebar is collapsed */
+.map-sidebar.collapsed .header-top h2,
+.map-sidebar.collapsed .search-box,
 .map-sidebar.collapsed .island-list {
     display: none;
 }
 
-/* Docked Popup Styling */
+/* ===============================
+   5) DOCKED POPUP STYLING
+   =============================== */
 .leaflet-popup-docked {
     position: absolute !important;
     top: 20px !important;
-    left: 20px !important; /* Position relative to its container, the map */
-    margin-left: 320px;    /* Offset by sidebar width */
+    left: 20px !important; 
+    margin-left: 320px;    /* Offsets by standard sidebar width */
     transform: none !important;
     bottom: auto !important;
     z-index: 1000;
 }
 
-/* When sidebar is collapsed, move the popup left */
+/* Adjust position when the sidebar is collapsed */
 .map-sidebar.collapsed + #map .leaflet-popup-docked {
     margin-left: 45px;
 }
 
-/* Polygon Flash Animation */
+/* Remove the popup tip/arrow since it is pinned to the side */
+.leaflet-popup-docked .leaflet-popup-tip-container {
+    display: none;
+}
+
+/* ===============================
+   6) ANIMATIONS & EFFECTS
+   =============================== */
 @keyframes polygon-flash {
     0% { stroke-width: 2; stroke: #3388ff; }
     50% { stroke-width: 8; stroke: #ffcc00; }
@@ -192,4 +209,5 @@
 
 .selected-polygon-flash {
     animation: polygon-flash 1s ease-in-out infinite;
+    z-index: 1000;
 }
