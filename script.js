@@ -155,3 +155,54 @@ window.zoomToFeature = function(islandName, areaName) {
 // ... keep previous toggleSidebar, toggleAccordion, and filterSidebar functions ...
 
 document.addEventListener('DOMContentLoaded', initMap);
+
+// Add these to your existing script.js
+
+window.toggleSidebar = function() {
+    const sidebar = document.getElementById('map-sidebar');
+    const btn = document.querySelector('.left-toggle');
+    sidebar.classList.toggle('collapsed');
+    
+    btn.innerHTML = sidebar.classList.contains('collapsed') ? '▶' : '◀';
+    btn.style.left = sidebar.classList.contains('collapsed') ? '12px' : '';
+    
+    setTimeout(() => map.invalidateSize(), 400);
+};
+
+window.toggleInfoSidebar = function() {
+    const infoSidebar = document.getElementById('info-sidebar');
+    const btn = document.querySelector('.right-toggle');
+    infoSidebar.classList.toggle('active');
+    
+    btn.innerHTML = infoSidebar.classList.contains('active') ? '▶' : '◀';
+    
+    setTimeout(() => map.invalidateSize(), 400);
+};
+
+// Updated zoom function to automatically open the info sidebar
+window.zoomToFeature = function(islandName, areaName) {
+    const features = islandLayers[islandName].features;
+    const feature = features.find(f => (f.attributes.MMA_Name || f.attributes.Name) === areaName);
+    
+    if (feature && feature._leafletLayer) {
+        const layer = feature._leafletLayer;
+        map.fitBounds(layer.getBounds());
+        
+        // Populate and Open Info Sidebar
+        document.getElementById('info-title').innerText = areaName;
+        document.getElementById('info-body').innerHTML = `
+            <div class="info-card">
+                <h3>Regulations</h3>
+                <p>${feature.attributes.Reg_Summary || 'No summary available for this area.'}</p>
+                <hr>
+                <small>Island: ${islandName}</small>
+            </div>
+        `;
+        
+        if (!document.getElementById('info-sidebar').classList.contains('active')) {
+            toggleInfoSidebar();
+        }
+        
+        layer.openPopup();
+    }
+};
