@@ -1,28 +1,36 @@
 /**
- * Hawaii Regulated Areas Map - Core Logic
+ * Hawaii Regulated Areas Map - Core Logic with ArcGIS Rendering
  */
 
 const CONFIG = {
     MAP_CENTER: [20.4, -157.4],
     DEFAULT_ZOOM: 7,
-    // Map islands to their specific ArcGIS Query URLs
     ISLANDS: {
-        "Oʻahu": "https://services.arcgis.com/HQ0xoN0EzDPBOEci/arcgis/rest/services/TKMMAFEATURECLASS_OAHU/FeatureServer/736/query?where=1=1&outFields=*&f=pjson&returnGeometry=true",
-        "Molokaʻi": "https://services.arcgis.com/HQ0xoN0EzDPBOEci/ArcGIS/rest/services/TKMMAFEATURECLASS_MOLOKAI/FeatureServer/735/query?where=1=1&outFields=*&f=pjson&returnGeometry=true",
-        "Maui": "https://services.arcgis.com/HQ0xoN0EzDPBOEci/ArcGIS/rest/services/TKMMAFEATURECLASS_MAUI/FeatureServer/734/query?where=1=1&outFields=*&f=pjson&returnGeometry=true",
-        "Lānaʻi": "https://services.arcgis.com/HQ0xoN0EzDPBOEci/ArcGIS/rest/services/TKMMAFEATURECLASS_LANAI/FeatureServer/733/query?where=1=1&outFields=*&f=pjson&returnGeometry=true",
-        "Kauaʻi": "https://services.arcgis.com/HQ0xoN0EzDPBOEci/ArcGIS/rest/services/TKMMAFEATURECLASS_KAUAI/FeatureServer/732/query?where=1=1&outFields=*&f=pjson&returnGeometry=true",
-        "Hawaiʻi Island": "https://services.arcgis.com/HQ0xoN0EzDPBOEci/ArcGIS/rest/services/TKMMAFEATURECLASS_HAWAII_ISLAND/FeatureServer/730/query?where=1=1&outFields=*&f=pjson&returnGeometry=true",
-        "Kahoʻolawe": "https://services.arcgis.com/HQ0xoN0EzDPBOEci/ArcGIS/rest/services/TKMMAFEATURECLASS_KAHAOLAWE/FeatureServer/731/query?where=1=1&outFields=*&f=pjson&returnGeometry=true"
+        "Oʻahu": "https://services.arcgis.com/HQ0xoN0EzDPBOEci/arcgis/rest/services/TKMMAFEATURECLASS_OAHU/FeatureServer/736",
+        "Molokaʻi": "https://services.arcgis.com/HQ0xoN0EzDPBOEci/ArcGIS/rest/services/TKMMAFEATURECLASS_MOLOKAI/FeatureServer/735",
+        "Maui": "https://services.arcgis.com/HQ0xoN0EzDPBOEci/ArcGIS/rest/services/TKMMAFEATURECLASS_MAUI/FeatureServer/734",
+        "Lānaʻi": "https://services.arcgis.com/HQ0xoN0EzDPBOEci/ArcGIS/rest/services/TKMMAFEATURECLASS_LANAI/FeatureServer/733",
+        "Kauaʻi": "https://services.arcgis.com/HQ0xoN0EzDPBOEci/ArcGIS/rest/services/TKMMAFEATURECLASS_KAUAI/FeatureServer/732",
+        "Hawaiʻi Island": "https://services.arcgis.com/HQ0xoN0EzDPBOEci/ArcGIS/rest/services/TKMMAFEATURECLASS_HAWAII_ISLAND/FeatureServer/730",
+        "Kahoʻolawe": "https://services.arcgis.com/HQ0xoN0EzDPBOEci/ArcGIS/rest/services/TKMMAFEATURECLASS_KAHAOLAWE/FeatureServer/731"
     }
 };
 
 let map;
-let islandLayers = {}; // Store L.geoJSON layers for toggling
+let islandLayers = {}; 
 
-function initMap() {
+// Helper: Convert ArcGIS RGBA [r,g,b,a] to Leaflet-friendly values
+function parseArcGISColor(arcgisColor) {
+    if (!arcgisColor) return { color: "#3388ff", opacity: 0.8 };
+    const [r, g, b, a] = arcgisColor;
+    return {
+        color: `rgb(${r},${g},${b})`,
+        opacity: a / 255
+    };
+}
+
+async function initMap() {
     map = L.map('map').setView(CONFIG.MAP_CENTER, CONFIG.DEFAULT_ZOOM);
-
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
         attribution: '© OpenStreetMap contributors'
     }).addTo(map);
@@ -30,22 +38,30 @@ function initMap() {
     loadAllIslandData();
 }
 
-/**
- * Fetches data for all islands and builds the sidebar
- */
 async function loadAllIslandData() {
     const islandListContainer = document.getElementById('island-list');
-    islandListContainer.innerHTML = ''; // Clear loading message
+    islandListContainer.innerHTML = '';
 
-    for (const [islandName, url] of Object.entries(CONFIG.ISLANDS)) {
+    for (const [islandName, baseUrl] of Object.entries(CONFIG.ISLANDS)) {
         try {
-            const response = await fetch(url);
-            const data = await response.json();
+            // 1. Fetch Metadata (for drawingInfo/colors)
+            const metaRes = await fetch(`${baseUrl}?f=pjson`);
+            const metadata = await metaRes.json();
+            const renderer = metadata.drawingInfo.renderer;
             
-            // ArcGIS JSON to GeoJSON conversion is handled better if we use Esri Leaflet, 
-            // but for raw JSON we process the 'features' array.
+            // 2. Fetch Features (data and geometry)
+            // Added outSR=4326 to ensure we get Lat/Long for Leaflet
+            const dataRes = await fetch(`${baseUrl}/query?where=1=1&outFields=*&outSR=4326&f=pjson`);
+            const data = await dataRes.json();
+
             if (data.features) {
-                renderIslandToSidebar(islandName, data.features);
+                // Determine styling based on ArcGIS renderer type
+                const style = renderer.symbol 
+                    ? parseArcGISColor(renderer.symbol.color)
+                    : parseArcGISColor(renderer.defaultSymbol?.color);
+
+                renderIslandToSidebar(islandName, data.features, style);
+                createMapLayer(islandName, data.features, style);
             }
         } catch (err) {
             console.error(`Failed to load ${islandName}:`, err);
@@ -53,51 +69,89 @@ async function loadAllIslandData() {
     }
 }
 
-function renderIslandToSidebar(islandName, features) {
+function createMapLayer(islandName, features, style) {
+    // Convert ArcGIS JSON features to Leaflet Polygons
+    const layerGroup = L.featureGroup();
+    
+    features.forEach(f => {
+        if (!f.geometry || !f.geometry.rings) return;
+        
+        // ArcGIS rings are [lng, lat], Leaflet needs [lat, lng]
+        const latLngs = f.geometry.rings.map(ring => 
+            ring.map(coord => [coord[1], coord[0]])
+        );
+
+        const polygon = L.polygon(latLngs, {
+            color: style.color,
+            fillColor: style.color,
+            fillOpacity: style.opacity,
+            weight: 2
+        });
+
+        const name = f.attributes.MMA_Name || f.attributes.Name || "Unnamed Area";
+        polygon.bindPopup(`<b>${name}</b>`);
+        layerGroup.addLayer(polygon);
+        
+        // Store reference for zooming
+        f._leafletLayer = polygon;
+    });
+
+    islandLayers[islandName] = {
+        group: layerGroup,
+        features: features
+    };
+}
+
+function renderIslandToSidebar(islandName, features, style) {
     const container = document.createElement('div');
     container.className = 'island-group';
     
-    // Extract names for the list - adjust 'MMA_Name' based on your actual field name
     const areaLinks = features.map(f => {
         const name = f.attributes.MMA_Name || f.attributes.Name || "Unnamed Area";
-        return `<div class="area-item" onclick="zoomToFeature('${islandName}', '${name}')">${name}</div>`;
+        return `<div class="area-item" onclick="zoomToFeature('${islandName}', '${name}')">
+                    <span class="color-dot" style="background:${style.color}"></span> ${name}
+                </div>`;
     }).join('');
 
     container.innerHTML = `
         <div class="island-header" onclick="toggleAccordion(this)">
             <div class="header-left">
-                <input type="checkbox" onclick="toggleIslandLayer(event, '${islandName}')">
+                <input type="checkbox" onchange="toggleIslandLayer(event, '${islandName}')">
                 <span>${islandName}</span>
             </div>
             <span class="chevron">▼</span>
         </div>
-        <div class="area-list" style="display:none;">
-            ${areaLinks}
-        </div>
+        <div class="area-list" style="display:none;">${areaLinks}</div>
     `;
     document.getElementById('island-list').appendChild(container);
 }
 
-// Global UI Logic
-window.toggleSidebar = function() {
-    document.getElementById('map-sidebar').classList.toggle('collapsed');
-    setTimeout(() => map.invalidateSize(), 300);
+window.toggleIslandLayer = function(event, islandName) {
+    const layerData = islandLayers[islandName];
+    if (event.target.checked) {
+        layerData.group.addTo(map);
+    } else {
+        map.removeLayer(layerData.group);
+    }
 };
 
-window.toggleAccordion = function(header) {
-    const list = header.nextElementSibling;
-    const isExpanded = list.style.display === 'block';
-    list.style.display = isExpanded ? 'none' : 'block';
-    header.classList.toggle('expanded', !isExpanded);
+window.zoomToFeature = function(islandName, areaName) {
+    const features = islandLayers[islandName].features;
+    const feature = features.find(f => (f.attributes.MMA_Name || f.attributes.Name) === areaName);
+    
+    if (feature && feature._leafletLayer) {
+        const layer = feature._leafletLayer;
+        if (!map.hasLayer(layer)) {
+            // Auto-check the island if it's not visible
+            const checkbox = document.querySelector(`input[onclick*='${islandName}']`);
+            if (checkbox) checkbox.checked = true;
+            islandLayers[islandName].group.addTo(map);
+        }
+        map.fitBounds(layer.getBounds());
+        layer.openPopup();
+    }
 };
 
-window.filterSidebar = function() {
-    const query = document.getElementById('area-search').value.toLowerCase();
-    document.querySelectorAll('.area-item').forEach(item => {
-        const match = item.textContent.toLowerCase().includes(query);
-        item.style.display = match ? 'block' : 'none';
-        if (match) item.closest('.island-group').style.display = 'block';
-    });
-};
+// ... keep previous toggleSidebar, toggleAccordion, and filterSidebar functions ...
 
 document.addEventListener('DOMContentLoaded', initMap);
