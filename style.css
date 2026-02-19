@@ -5,76 +5,63 @@
     --shadow: 0 4px 15px rgba(0,0,0,0.15);
 }
 
+body {
+    margin: 0;
+    padding: 0;
+    background: #e5e5e5; /* The color of the "gaps" */
+    overflow: hidden;
+}
+
 .map-interface {
     display: flex;
-    padding: var(--pane-gap); /* Creates the gap around the edges */
-    gap: var(--pane-gap);      /* Creates the gap between sidebars */
-    height: calc(100vh - (var(--pane-gap) * 2));
-    background: #e5e5e5;      /* Map background peek-through */
+    padding: var(--pane-gap);
+    gap: var(--pane-gap);
+    height: 100vh;
+    box-sizing: border-box;
+}
+
+/* Map Wrapper */
+.map-container {
+    flex: 1;
+    position: relative;
+    border-radius: var(--pane-radius);
+    overflow: hidden;
+    box-shadow: var(--shadow);
 }
 
 #map {
-    position: absolute;
-    top: 0; left: 0; 
-    width: 100%; height: 100%;
-    z-index: 1;
+    width: 100%;
+    height: 100%;
 }
 
-/* Common Pane Styles */
+/* Sidebar Styling */
 .map-sidebar, .info-sidebar {
     position: relative;
     background: white;
     height: 100%;
     border-radius: var(--pane-radius);
     box-shadow: var(--shadow);
+    transition: width 0.4s ease, opacity 0.3s ease;
     z-index: 10;
-    transition: width 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275), transform 0.3s ease;
-    overflow: visible; /* Allows toggle buttons to hang off the edge */
 }
 
-.sidebar-content {
-    display: flex;
-    flex-direction: column;
-    height: 100%;
-    overflow: hidden;
-    border-radius: var(--pane-radius);
-}
-
-/* Sidebar Widths */
 .map-sidebar { width: 320px; }
-.map-sidebar.collapsed { width: 0; transform: translateX(-20px); opacity: 0; pointer-events: none; }
+.map-sidebar.collapsed { width: 0; opacity: 0; overflow: hidden; }
 
-.info-sidebar { width: 0; opacity: 0; transform: translateX(20px); pointer-events: none; }
-.info-sidebar.active { width: 350px; opacity: 1; transform: translateX(0); pointer-events: auto; }
+.info-sidebar { width: 0; opacity: 0; overflow: hidden; }
+.info-sidebar.active { width: 350px; opacity: 1; }
 
-/* Handsome Toggle Buttons */
+/* Toggle Buttons - Fixed positioning to stay visible */
 .pane-toggle-btn {
     position: absolute;
     top: 20px;
-    width: 30px;
-    height: 60px;
+    z-index: 100;
     background: white;
-    border: 1px solid #ddd;
-    border-radius: 8px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    padding: 10px 5px;
     cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    box-shadow: var(--shadow);
-    z-index: 11;
-    transition: background 0.2s;
 }
 
-.pane-toggle-btn:hover { background: #f9f9f9; }
-
-/* Positioning the buttons in the "Gaps" */
-.left-toggle { right: -42px; } /* Sits in the gap to the right of primary sidebar */
-.right-toggle { left: -42px; } /* Sits in the gap to the left of info sidebar */
-
-.sidebar-header {
-    padding: 20px;
-    background: var(--primary-blue);
-    color: white;
-}
-
-.info-body { padding: 20px; line-height: 1.6; }
+.left-toggle { right: -15px; } /* Peek out into the gap */
+.right-toggle { left: -15px; }
