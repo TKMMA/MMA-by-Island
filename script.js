@@ -1,56 +1,37 @@
 // ===============================
-// 0) GLOBAL STORE
+// 0) GLOBAL STORE & CONFIG
 // ===============================
 const allIslandLayers = {};
 
-// ===============================
-// 1) TAB SWITCHING
-// ===============================
-window.showTab = function(btn, tabId) {
-    const section = btn.closest(".area-section");
-    if (!section) return;
-
-    section.querySelectorAll(".tab-pane").forEach((p) => (p.style.display = "none"));
-    btn.parentElement.querySelectorAll("button").forEach((b) => {
-        b.classList.remove("active");
-        b.style.borderBottomColor = "transparent";
-    });
-
-    const target = section.querySelector("#" + CSS.escape(tabId));
-    if (target) target.style.display = "block";
-    btn.classList.add("active");
-    btn.style.borderBottomColor = "#005a87";
-};
+// Updated ArcGIS URLs from your spreadsheet
+const islandConfigs = [
+    { name: 'Oʻahu', baseUrl: 'https://services.arcgis.com/HQ0xoN0EzDPBOEci/arcgis/rest/services/TKMMAFEATURECLASS_OAHU/FeatureServer', layerId: 736 },
+    { name: 'Molokaʻi', baseUrl: 'https://services.arcgis.com/HQ0xoN0EzDPBOEci/arcgis/rest/services/TKMMAFEATURECLASS_MOLOKAI/FeatureServer', layerId: 735 },
+    { name: 'Maui', baseUrl: 'https://services.arcgis.com/HQ0xoN0EzDPBOEci/arcgis/rest/services/TKMMAFEATURECLASS_MAUI/FeatureServer', layerId: 734 },
+    { name: 'Lānaʻi', baseUrl: 'https://services.arcgis.com/HQ0xoN0EzDPBOEci/arcgis/rest/services/TKMMAFEATURECLASS_LANAI/FeatureServer', layerId: 733 },
+    { name: 'Kauaʻi', baseUrl: 'https://services.arcgis.com/HQ0xoN0EzDPBOEci/arcgis/rest/services/TKMMAFEATURECLASS_KAUAI/FeatureServer', layerId: 732 },
+    { name: 'Hawaiʻi Island', baseUrl: 'https://services.arcgis.com/HQ0xoN0EzDPBOEci/arcgis/rest/services/TKMMAFEATURECLASS_HAWAII_ISLAND/FeatureServer', layerId: 730 },
+    { name: 'Kahoʻolawe', baseUrl: 'https://services.arcgis.com/HQ0xoN0EzDPBOEci/arcgis/rest/services/TKMMAFEATURECLASS_KAHAOLAWE/FeatureServer', layerId: 731 }
+];
 
 // ===============================
-// 2) FORMATTING HELPERS
+// 1) FORMATTING HELPERS
 // ===============================
 const getVal = (props, key) => {
     const foundKey = Object.keys(props).find(k => k.toLowerCase() === key.toLowerCase());
-    const val = foundKey ? props[foundKey] : null;
-    return val === "N/A" || val === "" || val === null ? null : val;
+    return foundKey ? props[foundKey] : null;
 };
 
 const formatBullets = (text) => {
     if (!text || text === "N/A") return "N/A";
     const lines = String(text).split(/\r?\n/).map(l => l.trim()).filter(Boolean);
-    if (!lines.some(l => /^[•●○◦*-]\s+/.test(l))) return text;
     return `<div style="padding-left:14px; margin-top:5px;">
-        ${lines.map(l => `<div style="margin-bottom:6px;">• ${l.replace(/^[•●○◦*-]\s+/, "")}</div>`).join("")}
+        ${lines.map(l => `<div style="margin-bottom:6px;">• ${l}</div>`).join("")}
     </div>`;
 };
 
-const formatDate = (dateVal) => {
-    if (!dateVal || dateVal === "N/A") return "N/A";
-    const date = new Date(dateVal);
-    return Number.isNaN(date.getTime()) ? dateVal : 
-        `${String(date.getMonth() + 1).padStart(2, "0")}/${String(date.getDate()).padStart(2, "0")}/${date.getFullYear()}`;
-};
-
-const joinFields = (props, ...keys) => keys.map(k => getVal(props, k)).filter(Boolean).join("<br>");
-
 // ===============================
-// 3) MAP INIT
+// 2) MAP INIT
 // ===============================
 const map = L.map("map").setView([20.4, -157.4], 7);
 
@@ -64,27 +45,19 @@ L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/Reference/Worl
 }).addTo(map);
 
 // ===============================
-// 4) DATA LOADING
+// 3) DATA LOADING (ARCGIS)
 // ===============================
-const islandFiles = [
-    { name: "Hawaii", url: "https://raw.githubusercontent.com/TKMMA/MMA-by-Island/main/Hawaii.geojson" },
-    { name: "Oahu", url: "https://raw.githubusercontent.com/TKMMA/MMA-by-Island/main/Oahu.geojson" },
-    { name: "Maui", url: "https://raw.githubusercontent.com/TKMMA/MMA-by-Island/main/Maui.geojson" },
-    { name: "Kauai", url: "https://raw.githubusercontent.com/TKMMA/MMA-by-Island/main/Kauai.geojson" },
-    { name: "Molokai", url: "https://raw.githubusercontent.com/TKMMA/MMA-by-Island/main/Molokai.geojson" },
-    { name: "Lanai", url: "https://raw.githubusercontent.com/TKMMA/MMA-by-Island/main/Lanai.geojson" }
-];
-
 async function loadAllData() {
     const islandData = {};
-    for (const island of islandFiles) {
+    for (const config of islandConfigs) {
         try {
-            const resp = await fetch(island.url);
+            const url = `${config.baseUrl}/${config.layerId}/query?where=1%3D1&outFields=*&f=geojson&returnGeometry=true`;
+            const resp = await fetch(url);
             const data = await resp.json();
-            islandData[island.name] = data;
-            addIslandToMap(island.name, data);
+            islandData[config.name] = data;
+            addIslandToMap(config.name, data);
         } catch (e) {
-            console.error(`Error loading ${island.name}:`, e);
+            console.error(`Error loading ${config.name}:`, e);
         }
     }
     populateSidebar(islandData);
@@ -98,18 +71,8 @@ function addIslandToMap(name, data) {
             const popupContent = `
                 <div class="area-section">
                     <h3 style="margin:0 0 10px; color:#005a87;">${getVal(p, "Area_Name") || "Regulated Area"}</h3>
-                    <div class="tabs" style="border-bottom:2px solid #eee; margin-bottom:10px; display:flex; gap:10px;">
-                        <button class="active" onclick="showTab(this, 'tab-info-${L.stamp(layer)}')">Info</button>
-                        <button onclick="showTab(this, 'tab-regs-${L.stamp(layer)}')">Rules</button>
-                    </div>
-                    <div id="tab-info-${L.stamp(layer)}" class="tab-pane">
-                        <p><strong>Island:</strong> ${getVal(p, "Island") || "N/A"}</p>
-                        <p><strong>Category:</strong> ${getVal(p, "Category") || "N/A"}</p>
-                    </div>
-                    <div id="tab-regs-${L.stamp(layer)}" class="tab-pane" style="display:none;">
-                        <p><strong>Prohibited:</strong> ${formatBullets(getVal(p, "Prohibited_Activities"))}</p>
-                        <p><strong>Permitted:</strong> ${formatBullets(getVal(p, "Permitted_Activities"))}</p>
-                    </div>
+                    <p><strong>Island:</strong> ${getVal(p, "Island") || name}</p>
+                    <p><strong>Prohibited:</strong> ${formatBullets(getVal(p, "Prohibited_Activities"))}</p>
                 </div>`;
             layer.bindPopup(popupContent, { maxWidth: 300 });
         }
@@ -118,7 +81,7 @@ function addIslandToMap(name, data) {
 }
 
 // ===============================
-// 5) SIDEBAR LOGIC
+// 4) SIDEBAR LOGIC
 // ===============================
 function populateSidebar(islandData) {
     const container = document.getElementById("island-list");
@@ -134,6 +97,7 @@ function populateSidebar(islandData) {
             return `<div class="area-item" onclick="zoomToArea('${islandName}', '${name}')">${name}</div>`;
         }).join("");
 
+        // onclick is now on the island-header DIV
         group.innerHTML = `
             <div class="island-header" id="header-${islandId}" onclick="toggleIsland('${islandId}')">
                 <div class="header-left">
@@ -162,7 +126,7 @@ window.toggleIsland = function(islandId) {
 };
 
 window.toggleLayerVisibility = function(event, islandName) {
-    event.stopPropagation();
+    event.stopPropagation(); // Prevents the sidebar from expanding when checking the box
     const layer = allIslandLayers[islandName];
     if (layer) {
         if (event.target.checked) map.addLayer(layer);
