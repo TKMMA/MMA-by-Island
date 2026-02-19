@@ -1,5 +1,5 @@
 /**
- * Hawaii Regulated Areas Map - Core Logic with ArcGIS Rendering
+ * Hawaii Regulated Areas Map - Unified Script
  */
 
 const CONFIG = {
@@ -19,18 +19,11 @@ const CONFIG = {
 let map;
 let islandLayers = {}; 
 
-// Helper: Convert ArcGIS RGBA [r,g,b,a] to Leaflet-friendly values
-function parseArcGISColor(arcgisColor) {
-    if (!arcgisColor) return { color: "#3388ff", opacity: 0.8 };
-    const [r, g, b, a] = arcgisColor;
-    return {
-        color: `rgb(${r},${g},${b})`,
-        opacity: a / 255
-    };
-}
+// --- Initialization ---
 
-async function initMap() {
+function initMap() {
     map = L.map('map').setView(CONFIG.MAP_CENTER, CONFIG.DEFAULT_ZOOM);
+
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
         attribution: '© OpenStreetMap contributors'
     }).addTo(map);
@@ -38,45 +31,54 @@ async function initMap() {
     loadAllIslandData();
 }
 
+// --- Data Fetching & Rendering ---
+
 async function loadAllIslandData() {
     const islandListContainer = document.getElementById('island-list');
-    islandListContainer.innerHTML = '';
+    if (!islandListContainer) return;
+    
+    islandListContainer.innerHTML = '<div class="loading">Loading Map Data...</div>';
 
     for (const [islandName, baseUrl] of Object.entries(CONFIG.ISLANDS)) {
         try {
-            // 1. Fetch Metadata (for drawingInfo/colors)
+            // 1. Fetch Metadata for Drawing Info
             const metaRes = await fetch(`${baseUrl}?f=pjson`);
             const metadata = await metaRes.json();
-            const renderer = metadata.drawingInfo.renderer;
-            
-            // 2. Fetch Features (data and geometry)
-            // Added outSR=4326 to ensure we get Lat/Long for Leaflet
+            const arcgisStyle = metadata.drawingInfo?.renderer?.symbol || metadata.drawingInfo?.renderer?.defaultSymbol;
+
+            // 2. Fetch Features with WGS84 coordinates
             const dataRes = await fetch(`${baseUrl}/query?where=1=1&outFields=*&outSR=4326&f=pjson`);
             const data = await dataRes.json();
 
             if (data.features) {
-                // Determine styling based on ArcGIS renderer type
-                const style = renderer.symbol 
-                    ? parseArcGISColor(renderer.symbol.color)
-                    : parseArcGISColor(renderer.defaultSymbol?.color);
-
-                renderIslandToSidebar(islandName, data.features, style);
+                const style = parseArcGISColor(arcgisStyle?.color);
                 createMapLayer(islandName, data.features, style);
+                renderIslandToSidebar(islandName, data.features, style);
             }
         } catch (err) {
-            console.error(`Failed to load ${islandName}:`, err);
+            console.error(`Error loading ${islandName}:`, err);
         }
     }
+    
+    const loadingMsg = islandListContainer.querySelector('.loading');
+    if (loadingMsg) loadingMsg.remove();
+}
+
+function parseArcGISColor(rgba) {
+    if (!rgba) return { color: "#005a87", opacity: 0.6 };
+    return {
+        color: `rgb(${rgba[0]}, ${rgba[1]}, ${rgba[2]})`,
+        opacity: rgba[3] / 255
+    };
 }
 
 function createMapLayer(islandName, features, style) {
-    // Convert ArcGIS JSON features to Leaflet Polygons
     const layerGroup = L.featureGroup();
     
     features.forEach(f => {
-        if (!f.geometry || !f.geometry.rings) return;
+        if (!f.geometry?.rings) return;
         
-        // ArcGIS rings are [lng, lat], Leaflet needs [lat, lng]
+        // Convert [lng, lat] to [lat, lng]
         const latLngs = f.geometry.rings.map(ring => 
             ring.map(coord => [coord[1], coord[0]])
         );
@@ -92,14 +94,11 @@ function createMapLayer(islandName, features, style) {
         polygon.bindPopup(`<b>${name}</b>`);
         layerGroup.addLayer(polygon);
         
-        // Store reference for zooming
+        // Link reference for sidebar zooming
         f._leafletLayer = polygon;
     });
 
-    islandLayers[islandName] = {
-        group: layerGroup,
-        features: features
-    };
+    islandLayers[islandName] = { group: layerGroup, features: features };
 }
 
 function renderIslandToSidebar(islandName, features, style) {
@@ -126,6 +125,37 @@ function renderIslandToSidebar(islandName, features, style) {
     document.getElementById('island-list').appendChild(container);
 }
 
+// --- UI Interaction Logic ---
+
+window.toggleSidebar = function() {
+    const sidebar = document.getElementById('map-sidebar');
+    const btn = document.querySelector('.left-toggle');
+    const isCollapsed = sidebar.classList.toggle('collapsed');
+    
+    btn.innerHTML = isCollapsed ? '▶' : '◀';
+    // Move button so it stays visible when pane is gone
+    btn.style.left = isCollapsed ? '12px' : ''; 
+    
+    setTimeout(() => map.invalidateSize(), 400);
+};
+
+window.toggleInfoSidebar = function() {
+    const infoSidebar = document.getElementById('info-sidebar');
+    const btn = document.querySelector('.right-toggle');
+    const isActive = infoSidebar.classList.toggle('active');
+    
+    btn.innerHTML = isActive ? '▶' : '◀';
+    
+    setTimeout(() => map.invalidateSize(), 400);
+};
+
+window.toggleAccordion = function(header) {
+    const list = header.nextElementSibling;
+    const isVisible = list.style.display === 'block';
+    list.style.display = isVisible ? 'none' : 'block';
+    header.classList.toggle('expanded', !isVisible);
+};
+
 window.toggleIslandLayer = function(event, islandName) {
     const layerData = islandLayers[islandName];
     if (event.target.checked) {
@@ -141,59 +171,22 @@ window.zoomToFeature = function(islandName, areaName) {
     
     if (feature && feature._leafletLayer) {
         const layer = feature._leafletLayer;
+        
+        // Ensure layer is on map
         if (!map.hasLayer(layer)) {
-            // Auto-check the island if it's not visible
-            const checkbox = document.querySelector(`input[onclick*='${islandName}']`);
-            if (checkbox) checkbox.checked = true;
             islandLayers[islandName].group.addTo(map);
+            const checkbox = document.querySelector(`input[onchange*='${islandName}']`);
+            if (checkbox) checkbox.checked = true;
         }
-        map.fitBounds(layer.getBounds());
-        layer.openPopup();
-    }
-};
 
-// ... keep previous toggleSidebar, toggleAccordion, and filterSidebar functions ...
-
-document.addEventListener('DOMContentLoaded', initMap);
-
-// Add these to your existing script.js
-
-window.toggleSidebar = function() {
-    const sidebar = document.getElementById('map-sidebar');
-    const btn = document.querySelector('.left-toggle');
-    sidebar.classList.toggle('collapsed');
-    
-    btn.innerHTML = sidebar.classList.contains('collapsed') ? '▶' : '◀';
-    btn.style.left = sidebar.classList.contains('collapsed') ? '12px' : '';
-    
-    setTimeout(() => map.invalidateSize(), 400);
-};
-
-window.toggleInfoSidebar = function() {
-    const infoSidebar = document.getElementById('info-sidebar');
-    const btn = document.querySelector('.right-toggle');
-    infoSidebar.classList.toggle('active');
-    
-    btn.innerHTML = infoSidebar.classList.contains('active') ? '▶' : '◀';
-    
-    setTimeout(() => map.invalidateSize(), 400);
-};
-
-// Updated zoom function to automatically open the info sidebar
-window.zoomToFeature = function(islandName, areaName) {
-    const features = islandLayers[islandName].features;
-    const feature = features.find(f => (f.attributes.MMA_Name || f.attributes.Name) === areaName);
-    
-    if (feature && feature._leafletLayer) {
-        const layer = feature._leafletLayer;
         map.fitBounds(layer.getBounds());
         
-        // Populate and Open Info Sidebar
+        // Update Info Sidebar
         document.getElementById('info-title').innerText = areaName;
         document.getElementById('info-body').innerHTML = `
             <div class="info-card">
                 <h3>Regulations</h3>
-                <p>${feature.attributes.Reg_Summary || 'No summary available for this area.'}</p>
+                <p>${feature.attributes.Reg_Summary || 'Details for this area coming soon.'}</p>
                 <hr>
                 <small>Island: ${islandName}</small>
             </div>
@@ -206,3 +199,14 @@ window.zoomToFeature = function(islandName, areaName) {
         layer.openPopup();
     }
 };
+
+window.filterSidebar = function() {
+    const query = document.getElementById('area-search').value.toLowerCase();
+    document.querySelectorAll('.area-item').forEach(item => {
+        const match = item.textContent.toLowerCase().includes(query);
+        item.style.display = match ? 'block' : 'none';
+        if (match) item.closest('.island-group').style.display = 'block';
+    });
+};
+
+document.addEventListener('DOMContentLoaded', initMap);
