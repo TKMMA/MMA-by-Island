@@ -1,7 +1,7 @@
 // ===============================
 // 0) GLOBAL STORE
 // ===============================
-const allIslandLayers = {}; 
+const allIslandLayers = {};
 
 // ===============================
 // 1) TAB SWITCHING
@@ -9,9 +9,7 @@ const allIslandLayers = {};
 window.showTab = function (btn, tabId) {
   const section = btn.closest(".area-section");
   if (!section) return;
-  section
-    .querySelectorAll(".tab-pane")
-    .forEach((p) => (p.style.display = "none"));
+  section.querySelectorAll(".tab-pane").forEach((p) => (p.style.display = "none"));
   btn.parentElement.querySelectorAll("button").forEach((b) => {
     b.classList.remove("active");
     b.style.borderBottomColor = "transparent";
@@ -25,13 +23,11 @@ window.showTab = function (btn, tabId) {
 // ===============================
 // 2) FORMATTING HELPERS
 // ===============================
-
-// Helper to strip ʻokinas and accents for "fuzzy" searching
 const normalizeText = (text) => {
   return text.toLowerCase()
     .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "") 
-    .replace(/[ʻ'‘’"“”]/g, "");     
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[ʻ'‘’"“”]/g, "");
 };
 
 const getVal = (props, key) => {
@@ -44,7 +40,6 @@ const getVal = (props, key) => {
 const formatBullets = (text) => {
   if (!text || text === "N/A") return "N/A";
   const lines = String(text).split(/\r?\n/).map(l => l.trim()).filter(Boolean);
-  if (!lines.some(l => /^[•●○◦*-]\s+/.test(l))) return text;
   return `<div style="padding-left:14px; margin-top:5px;">${lines.map(l => `<div style="margin-bottom:6px;">• ${l.replace(/^[•●○◦*-]\s+/, "")}</div>`).join("")}</div>`;
 };
 
@@ -61,13 +56,13 @@ const joinFields = (props, ...keys) => keys.map(k => getVal(props, k)).filter(Bo
 // ===============================
 const map = L.map("map").setView([20.4, -157.4], 7);
 
-L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}", { 
-  attribution: "Esri" 
+L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}", {
+  attribution: "Esri"
 }).addTo(map);
 
-L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}", { 
-  attribution: "Labels", 
-  pane: "shadowPane" 
+L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}", {
+  attribution: "Labels",
+  pane: "shadowPane"
 }).addTo(map);
 
 // ===============================
@@ -89,7 +84,6 @@ const islandConfigs = [
 function latlngInPolygon(latlng, layer, map) {
   const point = map.latLngToLayerPoint(latlng);
   if (!layer._parts || !layer._parts.length) return layer.getBounds().contains(latlng);
-  
   const insideRing = (ring) => {
     let inside = false;
     for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
@@ -106,16 +100,10 @@ function latlngInPolygon(latlng, layer, map) {
 function populateSidebar(islandName, features) {
   const container = document.getElementById('island-list');
   if (!container) return;
-  
-  // Removes "Loading..." message when the first island finishes fetching
-  if (container.innerHTML.includes("Loading island data...")) {
-    container.innerHTML = "";
-  }
-
+  if (container.innerHTML.includes("Loading island data...")) { container.innerHTML = ""; }
   const islandId = islandName.toLowerCase().replace(/[^\w]/g, "-");
   const group = document.createElement('div');
   group.className = 'island-group';
-  
   const areaItems = features.map(f => {
     const name = getVal(f.properties, "Full_Name") || getVal(f.properties, "Full_name") || "Unknown Area";
     return `<div class="area-item" onclick="zoomToArea('${islandName}', '${name}')">${name}</div>`;
@@ -133,7 +121,7 @@ function populateSidebar(islandName, features) {
   container.appendChild(group);
 }
 
-window.toggleSidebar = function() {
+window.toggleSidebar = function () {
   document.getElementById('map-sidebar').classList.toggle('collapsed');
 };
 
@@ -141,7 +129,6 @@ window.toggleIsland = (id) => {
   const list = document.getElementById(`list-${id}`);
   const header = document.getElementById(`header-${id}`);
   if (!list || !header) return;
-
   if (list.style.display === "none") {
     list.style.display = "block";
     header.classList.add('expanded');
@@ -166,18 +153,16 @@ window.zoomToArea = (islandName, areaName) => {
     const name = getVal(layer.feature.properties, "Full_Name") || getVal(layer.feature.properties, "Full_name");
     if (name === areaName) {
       map.fitBounds(layer.getBounds());
-      openMultiPopup(layer.getBounds().getCenter(), [layer.feature]);
+      openInfoSidebar([layer.feature]);
     }
   });
 };
 
 window.filterSidebar = () => {
   const term = normalizeText(document.getElementById('area-search').value);
-  
   document.querySelectorAll('.island-group').forEach(group => {
     let hasMatch = false;
     const items = group.querySelectorAll('.area-item');
-    
     items.forEach(item => {
       const itemName = normalizeText(item.innerText);
       if (itemName.includes(term)) {
@@ -187,10 +172,8 @@ window.filterSidebar = () => {
         item.style.display = 'none';
       }
     });
-
     const list = group.querySelector('.area-list');
     const header = group.querySelector('.island-header');
-    
     if (term !== "" && hasMatch) {
       list.style.display = "block";
       header.classList.add('expanded');
@@ -266,6 +249,13 @@ function openInfoSidebar(features) {
   container.classList.add('active');
 }
 
+window.closeInfoSidebar = function () {
+  const container = document.getElementById('info-sidebar');
+  if (container) container.classList.remove('active');
+  if (window.currentPin) map.removeLayer(window.currentPin);
+  document.querySelectorAll('.leaflet-interactive').forEach(el => el.classList.remove('selected-polygon-flash'));
+};
+
 // ===============================
 // 7) LOAD LAYERS
 // ===============================
@@ -275,10 +265,8 @@ async function loadIslandLayer(config) {
     const metadataResp = await fetch(`${layerUrl}?f=json`);
     const metadata = await metadataResp.json();
     const renderer = metadata?.drawingInfo?.renderer;
-    
     const dataResp = await fetch(`${layerUrl}/query?where=1=1&outFields=*&f=geojson&returnGeometry=true`);
     const geojsonData = await dataResp.json();
-
     const geoLayer = L.geoJSON(geojsonData, {
       style: function (feature) {
         return { weight: 1.2, fillOpacity: 0.3, color: "#005a87" };
@@ -289,10 +277,7 @@ async function loadIslandLayer(config) {
           map.setView(e.latlng, map.getZoom());
           if (window.currentPin) map.removeLayer(window.currentPin);
           window.currentPin = L.marker(e.latlng).addTo(map);
-
-          // Clear previous flashes
           document.querySelectorAll('.leaflet-interactive').forEach(el => el.classList.remove('selected-polygon-flash'));
-
           const hits = [];
           Object.values(allIslandLayers).forEach(islandLayerGroup => {
             islandLayerGroup.eachLayer(l => {
@@ -300,7 +285,6 @@ async function loadIslandLayer(config) {
                 hits.push(l.feature);
                 if (l._path) {
                   l._path.classList.add('selected-polygon-flash');
-                  // REMOVE FLASH AFTER 1 SECOND
                   setTimeout(() => { l._path.classList.remove('selected-polygon-flash'); }, 1000);
                 }
               }
@@ -310,7 +294,6 @@ async function loadIslandLayer(config) {
         });
       }
     }).addTo(map);
-
     allIslandLayers[config.name] = geoLayer;
     populateSidebar(config.name, geojsonData.features);
   } catch (e) { console.error(e); }
