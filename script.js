@@ -25,6 +25,15 @@ window.showTab = function (btn, tabId) {
 // ===============================
 // 2) FORMATTING HELPERS
 // ===============================
+
+// Helper to strip ʻokinas and accents for "fuzzy" searching
+const normalizeText = (text) => {
+  return text.toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "") 
+    .replace(/[ʻ'‘’"“”]/g, "");     
+};
+
 const getVal = (props, key) => {
   if (!props) return null;
   const foundKey = Object.keys(props).find(k => k.toLowerCase() === key.toLowerCase());
@@ -97,6 +106,12 @@ function latlngInPolygon(latlng, layer, map) {
 function populateSidebar(islandName, features) {
   const container = document.getElementById('island-list');
   if (!container) return;
+  
+  // Removes "Loading..." message when the first island finishes fetching
+  if (container.innerHTML.includes("Loading island data...")) {
+    container.innerHTML = "";
+  }
+
   const islandId = islandName.toLowerCase().replace(/[^\w]/g, "-");
   const group = document.createElement('div');
   group.className = 'island-group';
@@ -157,20 +172,25 @@ window.zoomToArea = (islandName, areaName) => {
 };
 
 window.filterSidebar = () => {
-  const term = document.getElementById('area-search').value.toLowerCase();
+  const term = normalizeText(document.getElementById('area-search').value);
+  
   document.querySelectorAll('.island-group').forEach(group => {
     let hasMatch = false;
     const items = group.querySelectorAll('.area-item');
+    
     items.forEach(item => {
-      if (item.innerText.toLowerCase().includes(term)) {
+      const itemName = normalizeText(item.innerText);
+      if (itemName.includes(term)) {
         item.style.display = 'block';
         hasMatch = true;
       } else {
         item.style.display = 'none';
       }
     });
+
     const list = group.querySelector('.area-list');
     const header = group.querySelector('.island-header');
+    
     if (term !== "" && hasMatch) {
       list.style.display = "block";
       header.classList.add('expanded');
@@ -184,6 +204,7 @@ window.filterSidebar = () => {
     }
   });
 };
+
 // ===============================
 // 6) POPUP GENERATION
 // ===============================
