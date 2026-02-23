@@ -23,10 +23,6 @@ const isMobileView = () => mobileMediaQuery.matches;
 
 /* --- MOBILE VIEWPORT & BROWSER BAR SYNC --- */
 
-/**
- * Syncs the banner position with the dynamic browser search bar (Safari/Chrome).
- * Updates the --browser-offset CSS variable.
- */
 function syncMobileBrowserInset() {
     if (!paneStageEl || !isMobileView()) return;
     const vv = window.visualViewport;
@@ -38,9 +34,6 @@ function syncMobileBrowserInset() {
 
 /* --- MOBILE STAGE STATE MANAGEMENT --- */
 
-/**
- * Sets the mobile UI to the fallback "Home" state: Minimized Areas List.
- */
 function setMobileHomeState(options = {}) {
     if (!isMobileView() || !paneStageEl) return;
 
@@ -49,10 +42,9 @@ function setMobileHomeState(options = {}) {
         mobileInfoHideTimer = null;
     }
 
-    // Force stage to List View (X=0) and Minimized View (Y=Offset)
     paneStageEl.classList.remove('is-info-view');
     paneStageEl.classList.add('is-minimized');
-    
+
     paneStageEl.style.setProperty('--stage-x', '0');
     paneStageEl.style.setProperty('--stage-y', 'calc(60dvh - 48px)');
 
@@ -60,27 +52,21 @@ function setMobileHomeState(options = {}) {
         mobileInfoHideTimer = setTimeout(() => {
             infoSidebarEl.classList.add('mobile-hidden');
             mobileInfoHideTimer = null;
-        }, 400); 
+        }, 400);
     } else {
         infoSidebarEl.classList.add('mobile-hidden');
     }
     updateMapSidebarBanner();
 }
 
-/**
- * Toggles expansion/collapse of the banner.
- */
 function toggleMobileStageMinimized() {
     if (!isMobileView() || !paneStageEl) return;
     paneStageEl.classList.toggle('is-minimized');
 }
 
-/**
- * Switches horizontal position between List and Info.
- */
 function setMobilePaneStage(stage = "list") {
     if (!isMobileView() || !paneStageEl) return;
-    
+
     if (stage === "info") {
         paneStageEl.classList.add('is-info-view');
         infoSidebarEl.classList.remove('mobile-hidden');
@@ -96,7 +82,7 @@ function setMobilePaneStage(stage = "list") {
 function ensureSidebarBanner(sidebarEl, options = {}) {
     if (!sidebarEl) return null;
     let banner = sidebarEl.querySelector(".sheet-banner");
-    
+
     if (!banner) {
         banner = document.createElement("div");
         banner.className = "sheet-banner";
@@ -129,7 +115,7 @@ function ensureSidebarBanner(sidebarEl, options = {}) {
     rightActionEl.onclick = (e) => { e.stopPropagation(); clearMapSelection(); };
 
     handleEl.style.display = options.showHandle === false ? "none" : "block";
-    
+
     return banner;
 }
 
@@ -190,14 +176,194 @@ const formatBulletsWithIndents = (text) => {
     `).join("");
 };
 
+const getFirstExistingValue = (props, candidateKeys) => {
+    for (const key of candidateKeys) {
+        const value = getVal(props, key);
+        if (value) return value;
+    }
+    return null;
+};
+
+const getAreaName = (props) => getFirstExistingValue(props, ["Name", "AREA_NAME", "MANAGED_AREA", "SITE_NAME", "TITLE"]) || "Unnamed area";
+
+const getIslandName = (props) => getFirstExistingValue(props, ["Island", "ISLAND", "ISLAND_NAME", "County"]) || "Other";
+
+const getDescription = (props) => getFirstExistingValue(props, ["Description", "DESCRIPTION", "Summary", "Notes", "NOTES", "Rule_Summary"]);
+
+const escapeHtml = (raw = "") => String(raw)
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#39;");
+
+/* --- DATA LOADING --- */
+
+async function loadAllFromSingleService() {
+    const islandListEl = document.getElementById("island-list");
+    if (!islandListEl) return;
+
+    islandListEl.innerHTML = `<div id="loading-notice" class="loading-notice">Loading Managed Areas...</div>`;
+
+    const queryParams = new URLSearchParams({
+        where: "1=1",
+        outFields: "*",
+        returnGeometry: "true",
+        outSR: "4326",
+        f: "geojson"
+    });
+
+    try {
+        const response = await fetch(`${SERVICE_LAYER_URL}/query?${queryParams.toString()}`);
+        if (!response.ok) throw new Error(`Service returned ${response.status}`);
+
+        const geojson = await response.json();
+        const features = Array.isArray(geojson.features) ? geojson.features : [];
+        if (!features.length) throw new Error("Service returned zero features");
+
+        const groupedByIsland = groupFeaturesByIsland(features);
+        renderFeaturesOnMap(groupedByIsland);
+        renderSidebar(groupedByIsland);
+    } catch (error) {
+        console.error("Failed to load managed areas", error);
+        islandListEl.innerHTML = `<div class="loading-notice">Unable to load areas from the service. Please refresh and try again.</div>`;
+    }
+}
+
+function groupFeaturesByIsland(features) {
+    return features.reduce((acc, feature) => {
+        const props = feature.properties || {};
+        const island = getIslandName(props);
+        if (!acc[island]) acc[island] = [];
+        acc[island].push(feature);
+        return acc;
+    }, {});
+}
+
+function renderFeaturesOnMap(groupedByIsland) {
+    Object.keys(groupedByIsland).forEach((island) => {
+        const islandLayer = L.geoJSON(groupedByIsland[island], {
+            style: {
+                color: "#00a6ff",
+                weight: 2,
+                opacity: 0.9,
+                fillColor: "#3dc5ff",
+                fillOpacity: 0.25
+            },
+            onEachFeature: (feature, layer) => {
+                layer.on({
+                    mouseover: () => {
+                        if (activeHoverLayer && activeHoverLayer !== layer) {
+                            activeHoverLayer.setStyle({ weight: 2, fillOpacity: 0.25 });
+                        }
+                        layer.setStyle({ weight: 3, fillOpacity: 0.4 });
+                        activeHoverLayer = layer;
+                    },
+                    mouseout: () => {
+                        if (activeAreaSelection?.layer !== layer) {
+                            layer.setStyle({ weight: 2, fillOpacity: 0.25 });
+                        }
+                    },
+                    click: (event) => {
+                        if (activeAreaSelection?.layer && activeAreaSelection.layer !== layer) {
+                            activeAreaSelection.layer.setStyle({ weight: 2, fillOpacity: 0.25 });
+                        }
+                        layer.setStyle({ color: "#0072ce", weight: 4, fillOpacity: 0.5 });
+                        activeAreaSelection = { layer, feature };
+                        openInfoPanel(event.latlng, [feature], { source: "map" });
+                    }
+                });
+            }
+        }).addTo(map);
+
+        allIslandLayers[island] = islandLayer;
+    });
+}
+
+function renderSidebar(groupedByIsland) {
+    const islandListEl = document.getElementById("island-list");
+    if (!islandListEl) return;
+
+    const orderedIslands = [
+        ...islandDisplayOrder.filter((island) => groupedByIsland[island]),
+        ...Object.keys(groupedByIsland).filter((island) => !islandDisplayOrder.includes(island)).sort()
+    ];
+
+    islandListEl.innerHTML = orderedIslands.map((island) => {
+        const islandFeatures = groupedByIsland[island]
+            .slice()
+            .sort((a, b) => getAreaName(a.properties || {}).localeCompare(getAreaName(b.properties || {})));
+
+        const featureItems = islandFeatures.map((feature) => {
+            const name = getAreaName(feature.properties || {});
+            return `<li class="area-item" data-area-name="${escapeHtml(name)}">${escapeHtml(name)}</li>`;
+        }).join("");
+
+        return `
+            <section class="island-group" data-island-name="${escapeHtml(island)}">
+                <h3 class="island-title">${escapeHtml(island)}</h3>
+                <ul class="area-list">${featureItems}</ul>
+            </section>
+        `;
+    }).join("");
+
+    islandListEl.querySelectorAll(".area-item").forEach((item) => {
+        item.addEventListener("click", () => {
+            const selectedName = item.dataset.areaName;
+            const feature = findFeatureByName(groupedByIsland, selectedName);
+            if (!feature) return;
+
+            const layer = findLayerForFeature(feature);
+            if (layer) {
+                const bounds = layer.getBounds?.();
+                if (bounds && bounds.isValid()) map.fitBounds(bounds, { maxZoom: 13, padding: [24, 24] });
+                layer.fire("click", {
+                    latlng: bounds && bounds.isValid() ? bounds.getCenter() : map.getCenter()
+                });
+            } else {
+                openInfoPanel(map.getCenter(), [feature], { source: "list" });
+            }
+        });
+    });
+}
+
+function findFeatureByName(groupedByIsland, areaName) {
+    for (const features of Object.values(groupedByIsland)) {
+        const found = features.find((f) => getAreaName(f.properties || {}) === areaName);
+        if (found) return found;
+    }
+    return null;
+}
+
+function findLayerForFeature(targetFeature) {
+    for (const islandLayer of Object.values(allIslandLayers)) {
+        let matchedLayer = null;
+        islandLayer.eachLayer((layer) => {
+            const currentFeature = layer.feature;
+            if (currentFeature === targetFeature) matchedLayer = layer;
+        });
+        if (matchedLayer) return matchedLayer;
+    }
+    return null;
+}
+
 /* --- SELECTION & INTERACTION --- */
 
 function openInfoPanel(latlng, features, options = {}) {
-    // [Internal Card HTML Generation Logic...]
-    // Note: Use your existing logic to build individualCardsHtml and summaryCardHtml here.
-    
+    const [feature] = features;
+    const props = feature?.properties || {};
+    const name = getAreaName(props);
+    const island = getIslandName(props);
+    const description = getDescription(props);
+
     const content = document.getElementById("info-content");
-    // content.innerHTML = ... (Construct your HTML as per previous builds)
+    content.innerHTML = `
+        <article class="info-card">
+            <h2>${escapeHtml(name)}</h2>
+            <p><strong>Island:</strong> ${escapeHtml(island)}</p>
+            <p><strong>Description:</strong> ${description ? formatBulletsWithIndents(escapeHtml(description)) : "N/A"}</p>
+        </article>
+    `;
 
     if (isMobileView()) {
         setMobilePaneStage("info");
@@ -219,6 +385,12 @@ function clearMapSelection() {
         map.removeLayer(activeSelectionMarker);
         activeSelectionMarker = null;
     }
+
+    if (activeAreaSelection?.layer) {
+        activeAreaSelection.layer.setStyle({ color: "#00a6ff", weight: 2, fillOpacity: 0.25 });
+    }
+    activeAreaSelection = null;
+
     if (isMobileView()) {
         setMobileHomeState({ hideInfoAfterTransition: true });
     } else {
@@ -239,6 +411,19 @@ function toggleSidebar() {
         mapInterfaceEl.classList.toggle("sidebar-collapsed");
         sidebarToggleEl.textContent = mapSidebarEl.classList.contains("collapsed") ? "▶" : "◀";
     }
+}
+
+function filterSidebar() {
+    const query = (document.getElementById("area-search")?.value || "").toLowerCase().trim();
+    document.querySelectorAll(".area-item").forEach((item) => {
+        const text = item.textContent.toLowerCase();
+        item.style.display = text.includes(query) ? "" : "none";
+    });
+
+    document.querySelectorAll(".island-group").forEach((section) => {
+        const anyVisible = Array.from(section.querySelectorAll(".area-item")).some((item) => item.style.display !== "none");
+        section.style.display = anyVisible ? "" : "none";
+    });
 }
 
 /* --- LIFECYCLE --- */
@@ -264,11 +449,10 @@ document.addEventListener("DOMContentLoaded", () => {
         setMobileHomeState();
         syncMobileBrowserInset();
     }
-    // loadAllFromSingleService(); // Trigger your data load here
+    loadAllFromSingleService();
 });
 
 map.on("click", (e) => {
-    // If not clicking a feature
     if (e.originalEvent.target.id === 'map') {
         clearMapSelection();
     }
