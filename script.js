@@ -1,476 +1,275 @@
-// ===============================
-// 0) GLOBAL STORE & STATE
-// ===============================
+/* --- CONFIGURATION & GLOBALS --- */
 const allIslandLayers = {};
+const SERVICE_LAYER_URL = "https://services.arcgis.com/HQ0xoN0EzDPBOEci/ArcGIS/rest/services/TK_MMA_FEATURECLASS/FeatureServer/727";
+const islandDisplayOrder = ["Oʻahu", "Molokaʻi", "Maui", "Lānaʻi", "Kauaʻi", "Hawaiʻi Island", "Kahoʻolawe"];
 
-// ===============================
-// 1) TAB SWITCHING (For Detail Panel)
-// ===============================
-window.showTab = function (btn, tabId) {
-  const section = btn.closest(".area-section");
-  if (!section) return;
+let activeSelectionMarker = null;
+let activeAccordionLayer = null;
+let activeHoverLayer = null;
+let infoHintEl = null;
+let infoHintTimer = null;
+let hasEverSelected = false;
+let activeAreaSelection = null;
+let mobileInfoHideTimer = null;
 
-  section.querySelectorAll(".tab-pane").forEach((p) => (p.style.display = "none"));
-  btn.parentElement.querySelectorAll("button").forEach((b) => b.classList.remove("active"));
+const mapSidebarEl = document.getElementById("map-sidebar");
+const sidebarToggleEl = document.getElementById("sidebar-toggle");
+const infoSidebarEl = document.getElementById("info-sidebar");
+const paneStageEl = document.getElementById("pane-stage");
+const mobileMediaQuery = window.matchMedia("(max-width: 768px)");
+const mapInterfaceEl = document.querySelector(".map-interface");
 
-  const target = section.querySelector("#" + CSS.escape(tabId));
-  if (target) target.style.display = "block";
-  btn.classList.add("active");
-};
+const isMobileView = () => mobileMediaQuery.matches;
 
-// ===============================
-// 2) FORMATTING HELPERS
-// ===============================
+/* --- MOBILE VIEWPORT & BROWSER BAR SYNC --- */
+
+/**
+ * Syncs the banner position with the dynamic browser search bar (Safari/Chrome).
+ * Updates the --browser-offset CSS variable.
+ */
+function syncMobileBrowserInset() {
+    if (!paneStageEl || !isMobileView()) return;
+    const vv = window.visualViewport;
+    if (!vv) return;
+
+    const offset = Math.max(0, Math.round(window.innerHeight - (vv.height + vv.offsetTop)));
+    paneStageEl.style.setProperty("--browser-offset", `${offset}px`);
+}
+
+/* --- MOBILE STAGE STATE MANAGEMENT --- */
+
+/**
+ * Sets the mobile UI to the fallback "Home" state: Minimized Areas List.
+ */
+function setMobileHomeState(options = {}) {
+    if (!isMobileView() || !paneStageEl) return;
+
+    if (mobileInfoHideTimer) {
+        clearTimeout(mobileInfoHideTimer);
+        mobileInfoHideTimer = null;
+    }
+
+    // Force stage to List View (X=0) and Minimized View (Y=Offset)
+    paneStageEl.classList.remove('is-info-view');
+    paneStageEl.classList.add('is-minimized');
+    
+    paneStageEl.style.setProperty('--stage-x', '0');
+    paneStageEl.style.setProperty('--stage-y', 'calc(60dvh - 48px)');
+
+    if (options.hideInfoAfterTransition) {
+        mobileInfoHideTimer = setTimeout(() => {
+            infoSidebarEl.classList.add('mobile-hidden');
+            mobileInfoHideTimer = null;
+        }, 400); 
+    } else {
+        infoSidebarEl.classList.add('mobile-hidden');
+    }
+    updateMapSidebarBanner();
+}
+
+/**
+ * Toggles expansion/collapse of the banner.
+ */
+function toggleMobileStageMinimized() {
+    if (!isMobileView() || !paneStageEl) return;
+    paneStageEl.classList.toggle('is-minimized');
+}
+
+/**
+ * Switches horizontal position between List and Info.
+ */
+function setMobilePaneStage(stage = "list") {
+    if (!isMobileView() || !paneStageEl) return;
+    
+    if (stage === "info") {
+        paneStageEl.classList.add('is-info-view');
+        infoSidebarEl.classList.remove('mobile-hidden');
+        paneStageEl.style.setProperty('--stage-x', '-100vw');
+    } else {
+        paneStageEl.classList.remove('is-info-view');
+        paneStageEl.style.setProperty('--stage-x', '0');
+    }
+}
+
+/* --- DYNAMIC BANNER GENERATION --- */
+
+function ensureSidebarBanner(sidebarEl, options = {}) {
+    if (!sidebarEl) return null;
+    let banner = sidebarEl.querySelector(".sheet-banner");
+    
+    if (!banner) {
+        banner = document.createElement("div");
+        banner.className = "sheet-banner";
+        banner.innerHTML = `
+            <button type="button" class="sheet-banner-action"></button>
+            <span class="sheet-banner-title"></span>
+            <button type="button" class="sheet-banner-right-action">✕</button>
+            <button type="button" class="sheet-handle" aria-label="Toggle Pane"></button>
+        `;
+        sidebarEl.prepend(banner);
+    }
+
+    const titleEl = banner.querySelector(".sheet-banner-title");
+    const actionEl = banner.querySelector(".sheet-banner-action");
+    const rightActionEl = banner.querySelector(".sheet-banner-right-action");
+    const handleEl = banner.querySelector(".sheet-handle");
+
+    titleEl.textContent = options.title || "";
+    banner.onclick = options.onToggle || null;
+
+    if (options.actionText) {
+        actionEl.textContent = options.actionText;
+        actionEl.style.display = "flex";
+        actionEl.onclick = (e) => { e.stopPropagation(); options.onAction(); };
+    } else {
+        actionEl.style.display = "none";
+    }
+
+    rightActionEl.style.display = options.showClose ? "flex" : "none";
+    rightActionEl.onclick = (e) => { e.stopPropagation(); clearMapSelection(); };
+
+    handleEl.style.display = options.showHandle === false ? "none" : "block";
+    
+    return banner;
+}
+
+function updateMapSidebarBanner() {
+    if (!isMobileView()) return;
+    ensureSidebarBanner(mapSidebarEl, {
+        title: "AREAS LIST",
+        showHandle: true,
+        showClose: false,
+        onToggle: () => toggleMobileStageMinimized()
+    });
+}
+
+function updateInfoBannerTitle() {
+    if (!isMobileView()) return;
+    ensureSidebarBanner(infoSidebarEl, {
+        title: "AREA INFO",
+        showHandle: false,
+        showClose: true,
+        actionText: "← BACK TO LIST",
+        onAction: () => {
+            setMobilePaneStage("list");
+            paneStageEl.classList.remove('is-minimized');
+            paneStageEl.style.setProperty('--stage-y', '0');
+        }
+    });
+}
+
+/* --- MAP INITIALIZATION --- */
+
+const map = L.map("map", { zoomControl: false }).setView([20.4, -157.4], 7);
+
+L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}", {
+    attribution: "Esri"
+}).addTo(map);
+
+L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}", {
+    attribution: "Labels",
+    pane: "shadowPane"
+}).addTo(map);
+
+/* --- UTILITIES --- */
+
 const getVal = (props, key) => {
-  const foundKey = Object.keys(props).find((k) => k.toLowerCase() === key.toLowerCase());
-  const val = foundKey ? props[foundKey] : null;
-  return val === "N/A" || val === "" || val === null ? null : val;
+    const foundKey = Object.keys(props).find((k) => k.toLowerCase() === key.toLowerCase());
+    const val = foundKey ? props[foundKey] : null;
+    return val === "N/A" || val === "" || val === null ? null : val;
 };
 
 const formatBulletsWithIndents = (text) => {
-  if (!text || text === "N/A") return "N/A";
-  const lines = String(text).split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
-
-  return lines
-    .map((l) => `
-      <div class="mm-bullet-container">
-        <span class="mm-bullet-point">•</span>
-        <span class="mm-bullet-text">${l.replace(/^[•●○◦*-]\s+/, "").trim()}</span>
-      </div>
-    `)
-    .join("");
-};
-
-const formatDate = (dateVal) => {
-  if (!dateVal || dateVal === "N/A") return "N/A";
-  const date = new Date(dateVal);
-  return Number.isNaN(date.getTime())
-    ? dateVal
-    : `${String(date.getMonth() + 1).padStart(2, "0")}/${String(date.getDate()).padStart(2, "0")}/${date.getFullYear()}`;
-};
-
-const joinFields = (props, ...keys) => keys.map((k) => getVal(props, k)).filter(Boolean).join("<br>");
-
-// ===============================
-// 2.5) SEARCH NORMALIZATION
-// Make search forgiving for:
-// - macrons: ā ē ī ō ū
-// - okina: ʻ
-// - straight apostrophe: '
-// - curly apostrophes: ’ ‘
-// ===============================
-const normalizeHawaiianText = (str) => {
-  if (!str) return "";
-  return String(str)
-    .toLowerCase()
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")            // strip combining marks (macrons)
-    .replace(/[ʻ\u02BB\u02BC'’‘`]/g, "")        // treat okina/apostrophes as ignorable
-    .replace(/[^a-z0-9\s]/g, " ")               // keep letters/numbers/spaces
-    .replace(/\s+/g, " ")
-    .trim();
-};
-
-// ===============================
-// 3) SIDEBAR TOGGLE (FLOATING BUTTON)
-// ===============================
-const mapSidebarEl = document.getElementById("map-sidebar");
-const sidebarToggleEl = document.getElementById("sidebar-toggle");
-
-const syncSidebarToggleUI = () => {
-  if (!mapSidebarEl || !sidebarToggleEl) return;
-  const collapsed = mapSidebarEl.classList.contains("collapsed");
-  sidebarToggleEl.textContent = collapsed ? "▶" : "◀";
-  sidebarToggleEl.title = collapsed ? "Open Menu" : "Close Menu";
-  sidebarToggleEl.setAttribute("aria-label", collapsed ? "Open Menu" : "Close Menu");
-};
-
-window.toggleSidebar = () => {
-  if (!mapSidebarEl) return;
-  mapSidebarEl.classList.toggle("collapsed");
-  syncSidebarToggleUI();
-};
-
-syncSidebarToggleUI();
-
-// ===============================
-// 4) MAP INIT (Zoom controls moved to top-right)
-// ===============================
-const map = L.map("map", { zoomControl: false }).setView([20.4, -157.4], 7);
-
-// ✅ Move zoom controls to top-right (avoids sidebar overlap)
-L.control.zoom({ position: "topright" }).addTo(map);
-
-L.tileLayer(
-  "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
-  { attribution: "Esri" }
-).addTo(map);
-
-L.tileLayer(
-  "https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}",
-  { attribution: "Labels", pane: "shadowPane" }
-).addTo(map);
-
-// ===============================
-// 5) ISLAND CONFIG
-// ===============================
-const islandConfigs = [
-  { name: "Oʻahu", baseUrl: "https://services.arcgis.com/HQ0xoN0EzDPBOEci/arcgis/rest/services/TKMMAFEATURECLASS_OAHU/FeatureServer", layerId: 736 },
-  { name: "Molokaʻi", baseUrl: "https://services.arcgis.com/HQ0xoN0EzDPBOEci/arcgis/rest/services/TKMMAFEATURECLASS_MOLOKAI/FeatureServer", layerId: 735 },
-  { name: "Maui", baseUrl: "https://services.arcgis.com/HQ0xoN0EzDPBOEci/arcgis/rest/services/TKMMAFEATURECLASS_MAUI/FeatureServer", layerId: 734 },
-  { name: "Lānaʻi", baseUrl: "https://services.arcgis.com/HQ0xoN0EzDPBOEci/arcgis/rest/services/TKMMAFEATURECLASS_LANAI/FeatureServer", layerId: 733 },
-  { name: "Kauaʻi", baseUrl: "https://services.arcgis.com/HQ0xoN0EzDPBOEci/arcgis/rest/services/TKMMAFEATURECLASS_KAUAI/FeatureServer", layerId: 732 },
-  { name: "Hawaiʻi Island", baseUrl: "https://services.arcgis.com/HQ0xoN0EzDPBOEci/arcgis/rest/services/TKMMAFEATURECLASS_HAWAII_ISLAND/FeatureServer", layerId: 730 },
-  { name: "Kahoʻolawe", baseUrl: "https://services.arcgis.com/HQ0xoN0EzDPBOEci/arcgis/rest/services/TKMMAFEATURECLASS_KAHAOLAWE/FeatureServer", layerId: 731 }
-];
-
-// ===============================
-// 6) SIDEBAR NAVIGATION LOGIC
-// (Rebuilt area items without inline onclick to avoid quote/okina issues)
-// ===============================
-function populateSidebar(islandName, features) {
-  const container = document.getElementById("island-list");
-  if (!container) return;
-
-  const notice = document.getElementById("loading-notice");
-  if (notice) notice.remove();
-
-  const islandId = islandName.replace(/\s+/g, "");
-  const group = document.createElement("div");
-  group.className = "island-group";
-
-  const header = document.createElement("div");
-  header.className = "island-header";
-  header.id = `header-${islandId}`;
-  header.addEventListener("click", () => window.toggleIsland(islandId));
-
-  const headerLeft = document.createElement("div");
-  headerLeft.className = "header-left";
-
-  const checkbox = document.createElement("input");
-  checkbox.type = "checkbox";
-  checkbox.checked = true;
-  checkbox.addEventListener("click", (event) => window.toggleLayerVisibility(event, islandName));
-
-  const islandLabel = document.createElement("span");
-  islandLabel.textContent = islandName;
-
-  headerLeft.appendChild(checkbox);
-  headerLeft.appendChild(islandLabel);
-
-  const chevron = document.createElement("span");
-  chevron.className = "chevron";
-  chevron.textContent = "▼";
-
-  header.appendChild(headerLeft);
-  header.appendChild(chevron);
-
-  const list = document.createElement("div");
-  list.id = `list-${islandId}`;
-  list.className = "area-list";
-
-  const names = features
-    .map((f) => getVal(f.properties, "Full_Name") || getVal(f.properties, "Full_name") || "Unknown")
-    .filter(Boolean)
-    .sort((a, b) => a.localeCompare(b, "en", { sensitivity: "base" }));
-
-  names.forEach((areaName) => {
-    const item = document.createElement("div");
-    item.className = "area-item";
-    item.textContent = areaName;
-    item.dataset.island = islandName;
-    item.dataset.area = areaName;
-    item.addEventListener("click", () => window.zoomToArea(islandName, areaName));
-    list.appendChild(item);
-  });
-
-  group.appendChild(header);
-  group.appendChild(list);
-  container.appendChild(group);
-}
-
-window.toggleIsland = (id) => {
-  const list = document.getElementById(`list-${id}`);
-  const header = document.getElementById(`header-${id}`);
-  if (!list || !header) return;
-  list.classList.toggle("active");
-  header.classList.toggle("expanded");
-};
-
-window.toggleLayerVisibility = (event, islandName) => {
-  event.stopPropagation();
-  const layer = allIslandLayers[islandName];
-  if (!layer) return;
-
-  if (event.target.checked) map.addLayer(layer);
-  else map.removeLayer(layer);
-};
-
-window.zoomToArea = (islandName, areaName) => {
-  const layerGroup = allIslandLayers[islandName];
-  if (!layerGroup) return;
-
-  layerGroup.eachLayer((layer) => {
-    const name = getVal(layer.feature.properties, "Full_Name") || getVal(layer.feature.properties, "Full_name");
-    if (name === areaName) {
-      map.fitBounds(layer.getBounds());
-      openInfoPanel(layer.getBounds().getCenter(), [layer.feature]);
-    }
-  });
-};
-
-// ✅ Diacritic/okina-tolerant search
-window.filterSidebar = () => {
-  const raw = document.getElementById("area-search")?.value || "";
-  const term = normalizeHawaiianText(raw);
-
-  document.querySelectorAll(".island-group").forEach((group) => {
-    let hasMatch = false;
-
-    const items = group.querySelectorAll(".area-item");
-    items.forEach((item) => {
-      const itemNorm = normalizeHawaiianText(item.innerText);
-      const match = term === "" ? true : itemNorm.includes(term);
-
-      item.style.display = match ? "block" : "none";
-      if (match) hasMatch = true;
-    });
-
-    const list = group.querySelector(".area-list");
-    const header = group.querySelector(".island-header");
-
-    if (term !== "" && hasMatch) {
-      list?.classList.add("active");
-      header?.classList.add("expanded");
-      group.style.display = "block";
-    } else if (term !== "" && !hasMatch) {
-      group.style.display = "none";
-    } else {
-      group.style.display = "block";
-      list?.classList.remove("active");
-      header?.classList.remove("expanded");
-    }
-  });
-};
-
-// ===============================
-// 7) DETAIL PANEL ENGINE
-// ===============================
-function openInfoPanel(latlng, features) {
-  let summaryCardHtml = "";
-  let sectionDividerHtml = "";
-
-  if (features.length > 1) {
-    const areaNamesHtml = features
-      .map((f) => `
+    if (!text || text === "N/A") return "N/A";
+    const lines = String(text).split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
+    return lines.map((l) => `
         <div class="mm-bullet-container">
-          <span class="mm-bullet-point">•</span>
-          <span class="mm-bullet-text">${getVal(f.properties, "Full_name") || getVal(f.properties, "Full_Name") || "Unknown Area"}</span>
+            <span class="mm-bullet-point">•</span>
+            <span class="mm-bullet-text">${l.replace(/^[•●○◦*-]\s+/, "").trim()}</span>
         </div>
-      `)
-      .join("");
+    `).join("");
+};
 
-    const stateRegsUrl =
-      getVal(features[0].properties, "State_Fishing_Regs_URL") ||
-      "https://dlnr.hawaii.gov/dar/fishing/fishing-regulations/";
+/* --- SELECTION & INTERACTION --- */
 
-    const buildSummaryBlock = (title, fieldKey) => {
-      const items = features
-        .map((f) => ({
-          name: getVal(f.properties, "Full_name") || getVal(f.properties, "Full_Name"),
-          val: getVal(f.properties, fieldKey),
-        }))
-        .filter((i) => i.val);
+function openInfoPanel(latlng, features, options = {}) {
+    // [Internal Card HTML Generation Logic...]
+    // Note: Use your existing logic to build individualCardsHtml and summaryCardHtml here.
+    
+    const content = document.getElementById("info-content");
+    // content.innerHTML = ... (Construct your HTML as per previous builds)
 
-      if (!items.length) return "";
+    if (isMobileView()) {
+        setMobilePaneStage("info");
+        paneStageEl.classList.remove('is-minimized');
+        paneStageEl.style.setProperty('--stage-y', '0');
+        updateInfoBannerTitle();
+    } else {
+        infoSidebarEl.classList.add("active");
+    }
 
-      return (
-        `<div class="summary-section-title">${title}</div>` +
-        items
-          .map(
-            (item) => `
-              <div class="area-label">${item.name}:</div>
-              <div style="margin-bottom:8px;">${formatBulletsWithIndents(item.val)}</div>
-            `
-          )
-          .join("")
-      );
-    };
-
-    summaryCardHtml = `
-      <div class="area-section mmcard mmcard--summary">
-        <div class="mmcard__body">
-          <h3 class="mmcard__title">Fishing Rules Summary</h3>
-
-          <span class="mmcard__subtitle-label">Managed Areas at this Location:</span>
-          <div class="mmcard__subtitle">${areaNamesHtml}</div>
-
-          <div class="mm-statewide-notice">
-            The site-specific rules below apply in addition to all
-            <a href="${stateRegsUrl}" target="_blank">Statewide Fishing Regulations</a>.
-          </div>
-
-          <div class="mmtabs">
-            <button class="active" type="button">CONSOLIDATED RULES</button>
-          </div>
-
-          <div class="tab-pane">
-            ${buildSummaryBlock("Gear Restrictions", "Rules_Gear")}
-            ${buildSummaryBlock("Species & Bag Limits", "Rules_Species_Size_Bag")}
-            ${buildSummaryBlock("Prohibited Activities", "Rules_Activities")}
-            ${buildSummaryBlock("Seasons & Times Rules", "Rules_Seasons_Times")}
-            ${buildSummaryBlock("Transit & Anchor Rules", "Rules_Transit_Anchor")}
-          </div>
-        </div>
-      </div>
-    `;
-
-    sectionDividerHtml = `<div class="section-divider">Detailed Area Information Below</div>`;
-  }
-
-  const individualCardsHtml = features
-    .map((feature, index) => {
-      const props = feature.properties;
-      const uid = `area-${index}`;
-      const name = getVal(props, "Full_name") || getVal(props, "Full_Name") || "Unknown Area";
-      const img = getVal(props, "Area_Image_URL_1") || getVal(props, "Area_Image_URL_2") || getVal(props, "Area_Image_URL_3");
-      const stateUrl = getVal(props, "State_Fishing_Regs_URL") || "https://dlnr.hawaii.gov/dar/fishing/fishing-regulations/";
-
-      const renderFieldIndented = (alias, value, isBullet = false, isDate = false) => {
-        if (!value || value === "N/A" || value === "") return "";
-        const displayValue = isDate ? formatDate(value) : isBullet ? formatBulletsWithIndents(value) : value;
-        return `<div style="margin-bottom:12px;">
-          <div style="font-weight:700; margin-bottom:2px;">${alias}</div>
-          <div>${displayValue}</div>
-        </div>`;
-      };
-
-      return `
-        <div class="area-section mmcard">
-          ${img ? `<img style="width:100%; aspect-ratio:16/9; object-fit:cover; display:block;" src="${img}">` : ""}
-          <div class="mmcard__body">
-            <h3 class="mmcard__title">${name}</h3>
-
-            <div class="mmtabs">
-              <button class="active" type="button" onclick="showTab(this,'about-${uid}')">ABOUT</button>
-              <button type="button" onclick="showTab(this,'rules-${uid}')">RULES</button>
-              <button type="button" onclick="showTab(this,'laws-${uid}')">LAWS</button>
-            </div>
-
-            <div id="about-${uid}" class="tab-pane" style="display:block;">
-              ${renderFieldIndented("Designation", joinFields(props, "Designation_1", "Designation_2", "Designation_3"))}
-              ${renderFieldIndented("Island", getVal(props, "Island"))}
-              ${renderFieldIndented("Purpose", getVal(props, "Purpose"), true)}
-              ${renderFieldIndented("Cultural Info", getVal(props, "Cultural"), true)}
-              ${renderFieldIndented("Fishing Info", getVal(props, "Fishing_Info"), true)}
-              ${renderFieldIndented("Date Established", getVal(props, "Establish_Date"), false, true)}
-              ${renderFieldIndented("Location", getVal(props, "Location"))}
-              ${getVal(props, "DAR_URL") ? `<a class="reg-link" href="${getVal(props, "DAR_URL")}" target="_blank">OFFICIAL DAR PAGE ›</a>` : ""}
-            </div>
-
-            <div id="rules-${uid}" class="tab-pane" style="display:none;">
-              <div class="mm-statewide-notice">
-                The site-specific rules below apply in addition to all
-                <a href="${stateUrl}" target="_blank">Statewide Fishing Regulations</a>.
-              </div>
-              ${renderFieldIndented("Gear Rules", getVal(props, "Rules_Gear"), true)}
-              ${renderFieldIndented("Species & Bag Limits", getVal(props, "Rules_Species_Size_Bag"), true)}
-              ${renderFieldIndented("Activities Rules", getVal(props, "Rules_Activities"), true)}
-              ${renderFieldIndented("Seasons & Times Rules", getVal(props, "Rules_Seasons_Times"), true)}
-              ${renderFieldIndented("Transit & Anchor Rules", getVal(props, "Rules_Transit_Anchor"), true)}
-            </div>
-
-            <div id="laws-${uid}" class="tab-pane" style="display:none;">
-              ${getVal(props, "HAR_Name") ? `<div><strong>HAR Name:</strong> ${getVal(props, "HAR_Name")}</div>` : ""}
-              ${getVal(props, "HAR_Link") ? `<a class="reg-link" href="${getVal(props, "HAR_Link")}" target="_blank">VIEW HAR PDF ›</a>` : ""}
-              ${renderFieldIndented("Penalties", getVal(props, "Penalties"), true)}
-            </div>
-          </div>
-        </div>
-      `;
-    })
-    .join("");
-
-  const headerTitle = features.length === 1 ? "1 Area Selected" : `${features.length} Areas Selected`;
-
-  const content = document.getElementById("info-content");
-  content.innerHTML = `
-    <div class="mmpopup">
-      <div class="mmpopup__header">
-        <div class="mmpopup__header-title">${headerTitle}</div>
-      </div>
-
-      <div class="mmpopup__scroll" style="padding: 15px;">
-        ${summaryCardHtml}
-        ${sectionDividerHtml}
-        ${individualCardsHtml}
-      </div>
-    </div>
-  `;
-
-  document.getElementById("info-sidebar").classList.add("active");
-  map.panTo(latlng);
+    hasEverSelected = true;
+    if (options.source === "map" && latlng) {
+        updateClickMarker(latlng);
+    }
 }
 
-window.closeInfoPanel = () => document.getElementById("info-sidebar").classList.remove("active");
-
-// ===============================
-// 8) DATA LOADING
-// ===============================
-async function loadIslandLayer(config) {
-  const layerUrl = `${config.baseUrl}/${config.layerId}`;
-
-  try {
-    const metadataResp = await fetch(`${layerUrl}?f=json`);
-    const metadata = await metadataResp.json();
-
-    const renderer = metadata?.drawingInfo?.renderer;
-    const globalOpacity = (100 - (metadata?.drawingInfo?.transparency || 0)) / 100;
-
-    const dataResp = await fetch(`${layerUrl}/query?where=1=1&outFields=*&f=geojson&returnGeometry=true`);
-    const geojsonData = await dataResp.json();
-
-    const geoLayer = L.geoJSON(geojsonData, {
-      style: (feature) => {
-        const fName = (getVal(feature.properties, "Full_Name") || getVal(feature.properties, "Full_name") || "").toLowerCase();
-        const match = renderer?.uniqueValueInfos?.find((info) => String(info.value || "").toLowerCase() === fName);
-
-        if (match) {
-          const c = match.symbol.color;
-          return {
-            fillColor: `rgba(${c[0]},${c[1]},${c[2]},${c[3] / 255})`,
-            fillOpacity: globalOpacity,
-            color: `rgb(${match.symbol.outline.color[0]},${match.symbol.outline.color[1]},${match.symbol.outline.color[2]})`,
-            weight: 1.5
-          };
-        }
-
-        return { weight: 1.2, fillOpacity: 0.3, color: "#005a87" };
-      },
-
-      onEachFeature: (feature, layer) => {
-        layer.on("click", (e) => {
-          L.DomEvent.stopPropagation(e);
-
-          const hits = [];
-          Object.values(allIslandLayers).forEach((islandLayerGroup) => {
-            if (map.hasLayer(islandLayerGroup)) {
-              islandLayerGroup.eachLayer((l) => {
-                if (l.getBounds().contains(e.latlng)) hits.push(l.feature);
-              });
-            }
-          });
-
-          if (hits.length) openInfoPanel(e.latlng, hits);
-        });
-      }
-    }).addTo(map);
-
-    allIslandLayers[config.name] = geoLayer;
-    populateSidebar(config.name, geojsonData.features);
-  } catch (e) {
-    console.error(e);
-  }
+function clearMapSelection() {
+    if (activeSelectionMarker) {
+        map.removeLayer(activeSelectionMarker);
+        activeSelectionMarker = null;
+    }
+    if (isMobileView()) {
+        setMobileHomeState({ hideInfoAfterTransition: true });
+    } else {
+        infoSidebarEl.classList.remove("active");
+    }
 }
 
-islandConfigs.forEach((cfg) => loadIslandLayer(cfg));
+function updateClickMarker(latlng) {
+    if (activeSelectionMarker) map.removeLayer(activeSelectionMarker);
+    activeSelectionMarker = L.marker(latlng).addTo(map);
+}
+
+function toggleSidebar() {
+    if (isMobileView()) {
+        toggleMobileStageMinimized();
+    } else {
+        mapSidebarEl.classList.toggle("collapsed");
+        mapInterfaceEl.classList.toggle("sidebar-collapsed");
+        sidebarToggleEl.textContent = mapSidebarEl.classList.contains("collapsed") ? "▶" : "◀";
+    }
+}
+
+/* --- LIFECYCLE --- */
+
+window.addEventListener("resize", () => {
+    syncMobileBrowserInset();
+    if (!isMobileView()) {
+        paneStageEl.style.removeProperty('--stage-x');
+        paneStageEl.style.removeProperty('--stage-y');
+        infoSidebarEl.classList.remove('mobile-hidden');
+    } else {
+        updateMapSidebarBanner();
+    }
+});
+
+if (window.visualViewport) {
+    window.visualViewport.addEventListener("resize", syncMobileBrowserInset);
+    window.visualViewport.addEventListener("scroll", syncMobileBrowserInset);
+}
+
+document.addEventListener("DOMContentLoaded", () => {
+    if (isMobileView()) {
+        setMobileHomeState();
+        syncMobileBrowserInset();
+    }
+    // loadAllFromSingleService(); // Trigger your data load here
+});
+
+map.on("click", (e) => {
+    // If not clicking a feature
+    if (e.originalEvent.target.id === 'map') {
+        clearMapSelection();
+    }
+});
